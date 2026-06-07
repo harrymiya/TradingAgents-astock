@@ -14,6 +14,7 @@ def create_bull_researcher(llm):
         policy_report = state.get("policy_report", "")
         hot_money_report = state.get("hot_money_report", "")
         lockup_report = state.get("lockup_report", "")
+        chanlun_report = state.get("chanlun_report", "")
         data_quality_summary = state.get("data_quality_summary", "")
 
         prompt = f"""You are a Bull Analyst advocating for investing in this A-share (China mainland) stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
@@ -40,6 +41,7 @@ Company fundamentals report: {fundamentals_report}
 Policy analysis report: {policy_report}
 Hot money / capital flow report: {hot_money_report}
 Lockup expiry / insider reduction report: {lockup_report}
+Chanlun technical analysis report: {chanlun_report}
 Data quality assessment: {data_quality_summary}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}

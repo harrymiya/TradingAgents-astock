@@ -395,6 +395,9 @@ class TradingAgentsGraph:
             "policy_report": final_state.get("policy_report", ""),
             "hot_money_report": final_state.get("hot_money_report", ""),
             "lockup_report": final_state.get("lockup_report", ""),
+            "chanlun_report": final_state.get("chanlun_report", ""),
+            "chanlun_buy_point": final_state.get("chanlun_buy_point", ""),
+            "chanlun_sell_point": final_state.get("chanlun_sell_point", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

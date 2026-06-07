@@ -1,6 +1,29 @@
 import os
 from typing import Any, Optional
 
+# 自动加载项目根目录的 .env 文件
+_env_loaded = False
+def _load_project_env():
+    global _env_loaded
+    if _env_loaded:
+        return
+    _env_loaded = True
+    # 找项目根目录下的 .env
+    for p in (os.path.dirname(os.path.dirname(__file__)),  # tradingagents/
+              os.getcwd()):                                 # cwd
+        env_path = os.path.join(p, '.env')
+        if os.path.isfile(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        v = v.strip().strip('"').strip("'")
+                        if k not in os.environ:
+                            os.environ[k] = v
+
+_load_project_env()
+
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 

@@ -59,6 +59,9 @@ class AgentState(MessagesState):
     policy_report: Annotated[str, "Report from the Policy Analyst (A-stock specific)"]
     hot_money_report: Annotated[str, "Report from the Hot Money Tracker (A-stock specific)"]
     lockup_report: Annotated[str, "Report from the Lockup/Reduction Watcher (A-stock specific)"]
+    chanlun_report: Annotated[str, "Report from the Chanlun Technical Analyst (缠论技术分析)"]
+    chanlun_buy_point: Annotated[str, "Identified buy point type from Chanlun analysis (一买/二买/三买/无)"]
+    chanlun_sell_point: Annotated[str, "Identified sell point type from Chanlun analysis (一卖/二卖/三卖/无)"]
 
     # data quality gate
     data_quality_summary: Annotated[str, "Quality gate assessment of all analyst reports (hard checks + LLM review)"]

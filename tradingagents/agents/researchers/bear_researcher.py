@@ -14,6 +14,7 @@ def create_bear_researcher(llm):
         policy_report = state.get("policy_report", "")
         hot_money_report = state.get("hot_money_report", "")
         lockup_report = state.get("lockup_report", "")
+        chanlun_report = state.get("chanlun_report", "")
         data_quality_summary = state.get("data_quality_summary", "")
 
         prompt = f"""You are a Bear Analyst making the case against investing in this A-share (China mainland) stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators unique to the Chinese market. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
@@ -41,6 +42,7 @@ Company fundamentals report: {fundamentals_report}
 Policy analysis report: {policy_report}
 Hot money / capital flow report: {hot_money_report}
 Lockup expiry / insider reduction report: {lockup_report}
+Chanlun technical analysis report: {chanlun_report}
 Data quality assessment: {data_quality_summary}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
