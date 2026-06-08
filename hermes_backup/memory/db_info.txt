@@ -1,0 +1,3 @@
+-rw-r--r-- 1 harrydolly harrydolly 2.1G Jun  9 07:29 /home/harrydolly/.hermes/astock_data.db
+-rw-r--r-- 1 harrydolly harrydolly 112K Jun  6 18:59 /home/harrydolly/.hermes/kanban.db
+-rw-r--r-- 1 harrydolly harrydolly  24M Jun  9 07:42 /home/harrydolly/.hermes/state.db

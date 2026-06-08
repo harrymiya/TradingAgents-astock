@@ -1,0 +1,62 @@
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Scheduled Jobs                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1095e84a03d4 [active]
+    Name:      全市场每日扫描
+    Schedule:  0 9 * * 1-5
+    Repeat:    ∞
+    Next run:  2026-06-09T09:00:00+08:00
+    Deliver:   origin
+    Last run:  2026-06-08T13:48:02.634545+08:00  ok
+
+  843bd73c7f4d [active]
+    Name:      收盘数据同步+多维度扫描
+    Schedule:  0 16 * * 1-5
+    Repeat:    ∞
+    Next run:  2026-06-09T16:00:00+08:00
+    Deliver:   origin
+    Skills:    astock-daily-sync, three-crows-screening
+    Last run:  2026-06-08T16:07:11.429615+08:00  ok
+
+  0e22e0c6d48d [active]
+    Name:      持仓监控日报
+    Schedule:  30 8,16 * * 1-5
+    Repeat:    ∞
+    Next run:  2026-06-09T08:30:00+08:00
+    Deliver:   origin
+    Skills:    astock-daily-sync, three-crows-screening, youzi-screening
+    Last run:  2026-06-08T16:40:19.021735+08:00  ok
+
+  f9b7838fbcf9 [active]
+    Name:      收盘日线同步
+    Schedule:  5 15 * * 1-5
+    Repeat:    ∞
+    Next run:  2026-06-09T15:05:00+08:00
+    Deliver:   origin
+    Skills:    astock-daily-sync
+
+  1fd92b4851ea [active]
+    Name:      每日深度研究
+    Schedule:  0 4 * * 2-6
+    Repeat:    ∞
+    Next run:  2026-06-10T04:00:00+08:00
+    Deliver:   origin
+    Skills:    astock-daily-sync
+    Last run:  2026-06-09T04:09:48.613268+08:00  error: RuntimeError: [Errno 32] Broken pipe
+
+  a470adb076a9 [active]
+    Name:      每周A股备份
+    Schedule:  30 15 * * 1
+    Repeat:    ∞
+    Next run:  2026-06-15T15:30:00+08:00
+    Deliver:   origin
+
+  e06a8e1c5423 [active]
+    Name:      S3超跌反弹每日扫描
+    Schedule:  30 16 * * 1-5
+    Repeat:    ∞
+    Next run:  2026-06-09T16:30:00+08:00
+    Deliver:   origin
+
