@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI算力产业链地图</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif; background:#0d1117; color:#c9d1d9; height:100vh; }
+.app { display:flex; height:100vh; }
+.sidebar { width:220px; min-width:220px; background:#161b22; border-right:1px solid #30363d; padding:16px; overflow-y:auto; }
+.sidebar h2 { font-size:15px; color:#58a6ff; margin-bottom:12px; }
+.industry-btn { display:block; width:100%; padding:7px 10px; margin-bottom:2px; background:#21262d; border:1px solid #30363d; border-radius:5px; color:#c9d1d9; cursor:pointer; text-align:left; font-size:12px; }
+.industry-btn:hover { background:#30363d; border-color:#58a6ff; }
+.industry-btn.active { background:#1f3a5f; border-color:#58a6ff; color:#58a6ff; font-weight:600; }
+.industry-btn .badge { float:right; background:#161b22; color:#8b949e; font-size:10px; padding:1px 6px; border-radius:8px; }
+.industry-desc { font-size:11px; color:#8b949e; padding:8px 10px; background:#0d1117; border-radius:5px; line-height:1.5; margin-top:8px; }
+.main { flex:1; display:flex; flex-direction:column; min-width:0; }
+.controls { display:flex; align-items:center; gap:8px; padding:8px 16px; background:#161b22; border-bottom:1px solid #30363d; flex-wrap:wrap; font-size:12px; }
+.controls label { color:#8b949e; }
+.controls select { background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 6px; font-size:12px; }
+.header { padding:10px 16px; background:#0d1117; border-bottom:1px solid #21262d; display:flex; align-items:center; gap:10px; }
+.header h1 { font-size:17px; color:#58a6ff; }
+.header .sub { font-size:11px; color:#8b949e; }
+.flow-container { flex:1; overflow:auto; padding:20px; }
+.level-label { font-size:12px; font-weight:600; color:#6e7681; margin:16px 0 10px; padding:3px 0; border-bottom:1px solid #21262d; }
+.link-group { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; }
+.link-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.link-name { font-size:13px; font-weight:600; }
+.link-badge { font-size:10px; padding:1px 6px; border-radius:8px; }
+.stock-item { display:flex; justify-content:space-between; align-items:center; padding:5px 8px; background:#0d1117; border-radius:4px; border-left:3px solid; font-size:11px; margin-bottom:2px; }
+.stock-name { color:#e6edf3; font-weight:500; }
+.stock-code { color:#6e7681; font-size:9px; margin-left:3px; }
+.stock-price { font-size:11px; }
+.stock-chg { font-size:11px; font-weight:600; }
+.up { color:#3fb950; } .down { color:#f85149; } .neutral { color:#8b949e; }
+.legend { display:flex; align-items:center; gap:5px; margin-left:auto; }
+.legend-item { display:flex; align-items:center; gap:2px; font-size:10px; color:#8b949e; }
+.legend-color { width:8px; height:8px; border-radius:50%; }
+.update-time { font-size:10px; color:#6e7681; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <h2>🏭 产业地图</h2>
+    <a class="industry-btn " href="#AI应用">AI应用<span class="badge">15家</span></a>
+    <a class="industry-btn active" href="#AI算力">AI算力<span class="badge">18家</span></a>
+    <a class="industry-btn " href="#人形机器人">人形机器人<span class="badge">15家</span></a>
+    <a class="industry-btn " href="#化工/材料">化工/材料<span class="badge">6家</span></a>
+    <a class="industry-btn " href="#医药">医药<span class="badge">7家</span></a>
+    <a class="industry-btn " href="#半导体">半导体<span class="badge">32家</span></a>
+    <a class="industry-btn " href="#商业航天">商业航天<span class="badge">6家</span></a>
+    <a class="industry-btn " href="#国防军工">国防军工<span class="badge">18家</span></a>
+    <a class="industry-btn " href="#新能源">新能源<span class="badge">22家</span></a>
+    <a class="industry-btn " href="#消费">消费<span class="badge">16家</span></a>
+    <a class="industry-btn " href="#金融">金融<span class="badge">6家</span></a>
+    <div class="industry-desc">AI大模型训练和推理的基础设施，算力需求指数级增长</div>
+  </div>
+  <div class="main">
+    <div class="header">
+      <h1>AI算力</h1>
+      <span class="sub">今日涨幅</span>
+    </div>
+    <div class="controls">
+      <label>着色:</label>
+      <select id="metric-select">
+        <option value="chg" selected>今日涨幅</option>
+        <option value="yearChg">年度涨幅</option>
+        <option value="volume">成交量</option>
+        <option value="amplitude">振幅</option>
+      </select>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-color" style="background:#00c853"></span>>5%</span>
+        <span class="legend-item"><span class="legend-color" style="background:#2ea043"></span>3-5%</span>
+        <span class="legend-item"><span class="legend-color" style="background:#8b949e"></span>±1%</span>
+        <span class="legend-item"><span class="legend-color" style="background:#f85149"></span>-3~-5%</span>
+        <span class="legend-item"><span class="legend-color" style="background:#7d1a2c"></span><-5%</span>
+      </div>
+      <span class="update-time">🕐 06/09 14:47</span>
+    </div>
+    <div class="flow-container">
+      <div class="level-label">⬆ 上游（材料/设备）</div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">EDA工具</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️🛡️🛡️ 国产化:15%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">华大九天</span>
+            <span class="stock-code">301269</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">概伦电子</span>
+            <span class="stock-code">688206</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="level-label">⬆ 中游（制造/平台）</div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">AI服务器</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️ 国产化:60%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">浪潮信息</span>
+            <span class="stock-code">000977</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">中科曙光</span>
+            <span class="stock-code">603019</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">GPU/AI芯片</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️🛡️🛡️ 国产化:15%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">海光信息</span>
+            <span class="stock-code">688041</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">寒武纪</span>
+            <span class="stock-code">688256</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">*ST闻泰</span>
+            <span class="stock-code">600745</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">HBM/存储</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️🛡️🛡️ 国产化:10%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">兆易创新</span>
+            <span class="stock-code">603986</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">澜起科技</span>
+            <span class="stock-code">688008</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">北京君正</span>
+            <span class="stock-code">300223</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">PCB</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️ 国产化:50%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">深南电路</span>
+            <span class="stock-code">002916</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">沪电股份</span>
+            <span class="stock-code">002463</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">东山精密</span>
+            <span class="stock-code">002384</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">云计算平台</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️ 国产化:50%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">浪潮信息</span>
+            <span class="stock-code">000977</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">中国电信</span>
+            <span class="stock-code">601728</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">光模块</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️ 国产化:60%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">中际旭创</span>
+            <span class="stock-code">300308</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">新易盛</span>
+            <span class="stock-code">300502</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+      <div class="link-group" style="margin-bottom:10px;border-color:#30363d">
+        <div class="link-header">
+          <span class="link-name">散热/液冷</span>
+          <span class="link-badge" style="background:#1f3a5f;color:#58a6ff">壁垒:🛡️🛡️🛡️ 国产化:40%</span>
+        </div>
+        <div class="stock-item" style="border-left-color:#8b949e">
+          <div>
+            <span class="stock-name">正泰电源</span>
+            <span class="stock-code">002150</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="stock-price">--</span>
+            <span class="stock-chg neutral">0.00%</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

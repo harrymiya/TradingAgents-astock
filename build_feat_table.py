@@ -163,7 +163,7 @@ def build_feat_table():
     print(f"\n✅ Phase 1 完成! 总耗时 {time.time()-t0:.1f}s")
     print(f"   特征列: chg, amp, vr_5, vr_20, ma5/10/20/60, ma20_pct, ma60_pct")
     print(f"           pos_20d, pos_60d, down_days, up_days")
-    print(f"           未来收益: ret1/2/3/5/10")
+
 
 if __name__ == "__main__":
     build_feat_table()

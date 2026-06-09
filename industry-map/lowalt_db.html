@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>低空经济产业链地图</title>
+<style>
+* {margin:0;padding:0;box-sizing:border-box}
+body {font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#0d1117;color:#c9d1d9;height:100vh;overflow:hidden}
+.app {display:flex;height:100vh}
+.side {width:210px;min-width:210px;background:#161b22;border-right:1px solid #30363d;padding:12px;display:flex;flex-direction:column}
+.side h2 {font-size:14px;color:#58a6ff;margin-bottom:10px;flex-shrink:0}
+.sl {flex:1;overflow-y:auto}
+.sb {display:flex;align-items:center;padding:6px 8px;margin-bottom:2px;background:#21262d;border:1px solid #30363d;border-radius:5px;color:#c9d1d9;cursor:pointer;text-decoration:none;font-size:11px;gap:4px}
+.sb:hover {border-color:#58a6ff}
+.sb.active {background:#1f3a5f;border-color:#58a6ff;color:#58a6ff}
+.sb .nm {flex:1}
+.sb .ct {font-size:10px;color:#8b949e}
+.sb .hbar {min-width:2px;height:14px;border-radius:2px;opacity:0.5}
+.sd {font-size:10px;color:#8b949e;padding:8px;background:#0d1117;border-radius:4px;margin-top:8px;line-height:1.5;flex-shrink:0}
+.main {flex:1;display:flex;flex-direction:column;min-width:0}
+.hdr {padding:10px 16px;background:#0d1117;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hdr h1 {font-size:16px;color:#58a6ff}
+.hdr .sub {font-size:11px;color:#8b949e}
+.ctl {display:flex;align-items:center;gap:8px;padding:6px 16px;background:#161b22;border-bottom:1px solid #30363d;font-size:11px;flex-shrink:0}
+.ctl label {color:#8b949e}
+.ctl select {background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:2px 6px;font-size:11px}
+.leg {display:flex;align-items:center;gap:4px;margin-left:auto}
+.leg-i {display:flex;align-items:center;gap:2px;font-size:9px;color:#8b949e}
+.leg-c {width:7px;height:7px;border-radius:50%}
+.ut {font-size:9px;color:#6e7681;white-space:nowrap}
+.fc {flex:1;overflow-y:auto;padding:16px 24px}
+.frr {display:flex;gap:20px;align-items:stretch}
+.fcc {flex:1;min-width:0}
+.lvl {font-size:11px;font-weight:600;color:#6e7681;margin-bottom:10px;padding:4px 8px;background:#0d1117;border-radius:4px}
+.lg {background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:12px;overflow:hidden}
+.lgh {padding:8px 10px;display:flex;justify-content:space-between;align-items:center}
+.lgn {font-size:12px;font-weight:600}
+.lgb {font-size:9px;padding:1px 5px;border-radius:4px}
+.st {display:flex;justify-content:space-between;align-items:center;padding:4px 10px;font-size:11px;border-left:3px solid;margin:1px 6px;border-radius:3px;background:#0d1117}
+.st-l {display:flex;align-items:center;gap:4px;min-width:0}
+.st-nm {color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px}
+.st-cd {color:#6e7681;font-size:9px;flex-shrink:0}
+.st-r {display:flex;gap:6px;align-items:center;flex-shrink:0}
+.st-pr {font-size:10px;color:#8b949e}
+.st-cg {font-size:10px;font-weight:600}
+.up {color:#3fb950} .down {color:#f85149} .na {color:#8b949e}
+.fh {font-size:9px;color:#6e7681;padding:4px 10px 6px;display:flex;gap:10px}
+.ac {display:flex;align-items:center;justify-content:center;width:30px;min-width:30px;color:#30363d;font-size:20px}
+</style></head>
+<body>
+<div class="app">
+<div class="side">
+<h2>🏭 产业地图</h2>
+<div class="sl">
+<a class="sb " href="#半导体"><div class="hbar" style="width:20px;background:#58a6ff"></div><span class="nm">半导体</span><span class="ct">59</span></a>
+<a class="sb " href="#AI算力"><div class="hbar" style="width:17px;background:#58a6ff"></div><span class="nm">AI算力</span><span class="ct">52</span></a>
+<a class="sb " href="#CPO(共封装光学)"><div class="hbar" style="width:8px;background:#58a6ff"></div><span class="nm">CPO(共封装光学)</span><span class="ct">26</span></a>
+<a class="sb " href="#新能源"><div class="hbar" style="width:7px;background:#58a6ff"></div><span class="nm">新能源</span><span class="ct">22</span></a>
+<a class="sb active" href="#低空经济"><div class="hbar" style="width:7px;background:#58a6ff"></div><span class="nm">低空经济</span><span class="ct">22</span></a>
+<a class="sb " href="#国防军工"><div class="hbar" style="width:5px;background:#58a6ff"></div><span class="nm">国防军工</span><span class="ct">17</span></a>
+<a class="sb " href="#消费"><div class="hbar" style="width:5px;background:#58a6ff"></div><span class="nm">消费</span><span class="ct">16</span></a>
+<a class="sb " href="#AI应用"><div class="hbar" style="width:5px;background:#58a6ff"></div><span class="nm">AI应用</span><span class="ct">15</span></a>
+<a class="sb " href="#人形机器人"><div class="hbar" style="width:3px;background:#58a6ff"></div><span class="nm">人形机器人</span><span class="ct">10</span></a>
+<a class="sb " href="#医药"><div class="hbar" style="width:3px;background:#58a6ff"></div><span class="nm">医药</span><span class="ct">6</span></a>
+<a class="sb " href="#金融"><div class="hbar" style="width:3px;background:#58a6ff"></div><span class="nm">金融</span><span class="ct">6</span></a>
+<a class="sb " href="#化工/材料"><div class="hbar" style="width:3px;background:#58a6ff"></div><span class="nm">化工/材料</span><span class="ct">5</span></a>
+<a class="sb " href="#商业航天"><div class="hbar" style="width:3px;background:#58a6ff"></div><span class="nm">商业航天</span><span class="ct">5</span></a>
+<a class="sb " href="#机器人"><div class="hbar" style="width:3px;background:#58a6ff"></div><span class="nm">机器人</span><span class="ct">0</span></a>
+</div>
+<div class="sd">eVTOL/无人机产业链</div>
+</div>
+<div class="main">
+<div class="hdr"><h1>低空经济</h1><span class="sub">今日涨幅 · 22只</span></div>
+<div class="ctl">
+<label>着色:</label>
+<select id="ms">
+<option value="chg" selected>今日涨幅</option>
+<option value="yearChg">年度涨幅</option>
+<option value="volume">成交量</option>
+<option value="amplitude">振幅</option>
+</select>
+<div class="leg">
+<span class="leg-i"><span class="leg-c" style="background:#00c853"></span>>5%</span>
+<span class="leg-i"><span class="leg-c" style="background:#2ea043"></span>3%</span>
+<span class="leg-i"><span class="leg-c" style="background:#8b949e"></span>±1%</span>
+<span class="leg-i"><span class="leg-c" style="background:#f85149"></span>-3%</span>
+<span class="leg-i"><span class="leg-c" style="background:#7d1a2c"></span><-5%</span>
+</div>
+<span class="ut">🕐 06/09 15:07</span>
+</div>
+<div class="fc"><div class="frr">
+<div class="fcc"><div class="lvl">⬆ 上游·材料/设备/芯片</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#7c3aed">碳纤维复合材料</span>
+<span class="lgb" style="background:#7c3aed20;color:#7c3aed">🛡🛡🛡🛡 30%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">航天发展</span><span class="st-cd">000547</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">光威复材</span><span class="st-cd">300699</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">中航高科</span><span class="st-cd">600862</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#2563eb">飞控系统/导航</span>
+<span class="lgb" style="background:#2563eb20;color:#2563eb">🛡🛡🛡🛡🛡 20%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">航天科技</span><span class="st-cd">000901</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">航天电子</span><span class="st-cd">600879</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">中科星图</span><span class="st-cd">688568</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#0891b2">动力系统(电机/电池)</span>
+<span class="lgb" style="background:#0891b220;color:#0891b2">🛡🛡🛡🛡 40%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">恩捷股份</span><span class="st-cd">002812</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">汇川技术</span><span class="st-cd">300124</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">宁德时代</span><span class="st-cd">300750</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+</div>
+</div>
+<div class="ac"><div style="display:flex;flex-direction:column;align-items:center;gap:20px;opacity:0.4"><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span></div></div>
+<div class="fcc"><div class="lvl">↔ 中游·制造/平台</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#059669">eVTOL整机</span>
+<span class="lgb" style="background:#05966920;color:#059669">🛡🛡🛡🛡🛡 15%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">长安汽车</span><span class="st-cd">000625</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">万丰奥威</span><span class="st-cd">002085</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">广汽集团</span><span class="st-cd">601238</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">莱斯信息</span><span class="st-cd">688631</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="fh"><span>← 碳纤维复合材料↔飞控系统/导航↔动力系统(电机/电池)</span></div>
+</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#d97706">无人机/飞行器</span>
+<span class="lgb" style="background:#d9770620;color:#d97706">🛡🛡🛡🛡 50%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">星网宇达</span><span class="st-cd">002829</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">航新科技</span><span class="st-cd">300424</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">航发科技</span><span class="st-cd">600391</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="fh"><span>← 碳纤维复合材料↔飞控系统/导航↔动力系统(电机/电池)</span></div>
+</div>
+</div>
+<div class="ac"><div style="display:flex;flex-direction:column;align-items:center;gap:20px;opacity:0.4"><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span><span style="font-size:18px;color:#8b949e">→</span></div></div>
+<div class="fcc"><div class="lvl">⬇ 下游·应用/终端</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#dc2626">低空运营/基建</span>
+<span class="lgb" style="background:#dc262620;color:#dc2626">🛡🛡🛡 50%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">深圳机场</span><span class="st-cd">000089</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">白云机场</span><span class="st-cd">600004</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">上海机场</span><span class="st-cd">600009</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="fh"><span>← eVTOL整机↔无人机/飞行器</span></div>
+</div>
+<div class="lg">
+<div class="lgh">
+<span class="lgn" style="color:#db2777">空管/低空雷达</span>
+<span class="lgb" style="background:#db277720;color:#db2777">🛡🛡🛡🛡🛡 25%</span>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">航发控制</span><span class="st-cd">000738</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">聚光科技</span><span class="st-cd">300203</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="st" style="border-left-color:#8b949e">
+<div class="st-l"><span class="st-nm">中国卫星</span><span class="st-cd">600118</span></div>
+<div class="st-r"><span class="st-pr">--</span><span class="st-cg na">0.00%</span></div>
+</div>
+<div class="fh"><span>← eVTOL整机↔无人机/飞行器</span></div>
+</div>
+</div>
+</div></div></div></div></body></html>

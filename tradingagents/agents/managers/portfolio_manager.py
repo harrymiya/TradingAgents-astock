@@ -38,10 +38,46 @@ def create_portfolio_manager(llm):
             if past_context
             else ""
         )
+        hot_money_report = state.get("hot_money_report", "")
+        chanlun_report = state.get("chanlun_report", "")
+
+        hot_money_section = (
+            f"\n**Hot Money / Capital Flow Context:**\n{hot_money_report}\n\n"
+            "⚠️ When weighing the risk analysts' debate, factor in whether hot money is "
+            "accumulating or exiting — this is a leading indicator for short-term price direction in A-shares.\n"
+            if hot_money_report else ""
+        )
+        chanlun_section = (
+            f"\n**Chanlun Technical Structure Context (缠论技术结构):**\n{chanlun_report}\n\n"
+            "⚠️ When making the final decision, factor in the chanlun structure: "
+            "买卖点 type (一买/二买/三买 = supports entry; 一卖/二卖/三卖 = supports exit), "
+            "走势类型 (上涨趋势=hold; 下跌趋势=exit; 盘整=neutral), "
+            "and 中枢 levels (key support/resistance for stop-loss and take-profit placement).\n"
+            if chanlun_report else ""
+        )
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
+
+---
+
+## 📐 游资仓位管理原则 — factor these into your final sizing decision:
+
+### 炒股养家仓位体系
+- **"行情好就多做，行情不好就少做"** — Your final rating should reflect the current market quality. If the sentiment/market report suggests a favorable environment, Overweight/Buy is more justified. If weak, Underweight/Sell.
+- **"试错单感受市场情绪"** — If the evidence is mixed, prescribe test positions (small size) rather than binary all-in/all-out.
+- **Buy = 奋力一击 (go all-in when conviction is highest)** — Only use Buy when both the bull debate AND the risk analysts acknowledge manageable risk.
+- **Sell = 风险已至 (risk has materialized)** — Only use Sell when the bear case is overwhelming AND risk analysts agree.
+- **Hold/Underweight/Overweight = 试错+观察 (test and observe)** — These are the default ratings for ambiguous situations.
+
+### 北京炒家分仓原则
+- **单票不超过1/3** — Even for Buy/Overweight ratings, specify a max position size. No rating should imply "go all-in."
+- **"模式的一致性比选到牛股更重要"** — Your final decision should be consistent with the framework, not a one-off exception.
+
+### 涅槃重升回撤原则
+- **"控制回撤比追求盈利更重要"** — The final Stop Loss level must be explicit and tight enough to limit any position to a max 15-20% portfolio drawdown.
+- **"稳定复利是唯一的道路"** — If the risk debate is genuinely split, default to the more conservative sizing.
 
 ---
 
@@ -66,6 +102,8 @@ def create_portfolio_manager(llm):
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
+{hot_money_section}
+{chanlun_section}
 **Risk Analysts Debate History:**
 {history}
 

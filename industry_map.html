@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股产业地图 — 拓扑网络</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #c9d1d9; overflow: hidden; height: 100vh; }
+
+#app { display: flex; height: 100vh; }
+
+/* 左侧边栏 */
+#sidebar { width: 220px; min-width: 220px; background: #161b22; border-right: 1px solid #30363d; padding: 16px; overflow-y: auto; }
+#sidebar h2 { font-size: 16px; margin-bottom: 16px; color: #58a6ff; }
+.industry-btn { display: block; width: 100%; padding: 10px 14px; margin-bottom: 4px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; cursor: pointer; text-align: left; font-size: 13px; transition: all 0.2s; }
+.industry-btn:hover { background: #30363d; border-color: #58a6ff; }
+.industry-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+.industry-btn .badge { float: right; background: #21262d; color: #8b949e; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
+.industry-info { font-size: 11px; color: #8b949e; margin: 8px 0 12px; padding: 8px 10px; background: #0d1117; border-radius: 4px; line-height: 1.5; }
+
+/* 控制栏 */
+#controls { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #161b22; border-bottom: 1px solid #30363d; flex-wrap: wrap; }
+#controls label { color: #8b949e; font-size: 13px; }
+#controls select { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+#controls .refresh-btn { background: #238636; color: white; border: none; border-radius: 4px; padding: 6px 16px; cursor: pointer; font-size: 13px; }
+#controls .refresh-btn:hover { background: #2ea043; }
+#legend { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #8b949e; }
+.legend-color { width: 14px; height: 14px; border-radius: 50%; }
+
+/* 主画布 */
+#main { flex: 1; display: flex; flex-direction: column; }
+#graph { flex: 1; position: relative; }
+#graph svg { width: 100%; height: 100%; }
+
+/* 节点 */
+.node circle { stroke: #fff; stroke-width: 1.5px; cursor: pointer; transition: r 0.2s; }
+.node circle:hover { stroke: #58a6ff; stroke-width: 3px; }
+.node text { font-size: 11px; fill: #c9d1d9; pointer-events: none; }
+.node-label { font-size: 10px; fill: #8b949e; }
+.link { stroke: #30363d; stroke-width: 1.5px; stroke-opacity: 0.6; }
+
+/* 弹窗 */
+.tooltip { position: absolute; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 18px; font-size: 13px; pointer-events: none; max-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 100; }
+.tooltip h3 { color: #58a6ff; margin-bottom: 6px; font-size: 15px; }
+.tooltip .row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #21262d; }
+.tooltip .row:last-child { border-bottom: none; }
+.tooltip .label { color: #8b949e; }
+.tooltip .value { color: #c9d1d9; font-weight: 500; }
+.tooltip .up { color: #3fb950 !important; }
+.tooltip .down { color: #f85149 !important; }
+
+/* 环节标签 */
+.link-group { pointer-events: none; }
+.link-group text { font-size: 11px; fill: #8b949e; text-anchor: middle; }
+
+/* 滚动条 */
+#sidebar::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h2>🏭 产业地图</h2>
+    <div id="industry-list"></div>
+    <div id="industry-desc" class="industry-info"></div>
+  </div>
+  <div id="main">
+    <div id="controls">
+      <label>着色指标:</label>
+      <select id="color-metric">
+        <option value="chg">今日涨幅</option>
+        <option value="yearChg">年度涨幅</option>
+        <option value="monthChg">月度涨幅</option>
+        <option value="volume">成交量</option>
+        <option value="amplitude">振幅</option>
+      </select>
+      <label>环节标签:</label>
+      <select id="label-mode">
+        <option value="stock">股票名</option>
+        <option value="link">环节名</option>
+        <option value="both" selected>环节+股票</option>
+      </select>
+      <button class="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
+      <div style="margin-left:auto;font-size:11px;color:#8b949e" id="update-time"></div>
+    </div>
+    <div id="graph"><svg></svg></div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// 产业数据（从JSON嵌入）
+// ================================================================
+const INDUSTRY_DATA = {"人形机器人": {"描述": "AI驱动的新一代硬件终端，特斯拉Optimus引领产业化元年", "环节": {"丝杠/减速器": {"上游": ["电机", "轴承"], "下游": ["关节模组"], "壁垒": 5, "国产化率": 35, "股票": ["603728", "688017", "002050", "601689", "300660"], "描述": "核心传动部件，精密加工壁垒极高，绿的谐波打破日本HD垄断"}, "电机": {"上游": ["磁性材料"], "下游": ["丝杠/减速器", "关节模组"], "壁垒": 3, "国产化率": 60, "股票": ["300124", "002050", "688017"], "描述": "空心杯电机/无框力矩电机，汇川技术国内龙头"}, "关节模组": {"上游": ["丝杠/减速器", "电机", "传感器"], "下游": ["整机集成"], "壁垒": 4, "国产化率": 30, "股票": ["300124", "688017"], "描述": "集成减速器+电机+编码器的一体化组件"}, "传感器": {"上游": ["芯片"], "下游": ["关节模组", "整机集成"], "壁垒": 4, "国产化率": 25, "股票": ["002475"], "描述": "六维力传感器、视觉传感器、触觉传感器"}, "整机集成": {"上游": ["关节模组", "传感器", "AI芯片", "软件"], "下游": [], "壁垒": 3, "国产化率": 40, "股票": ["300607", "601689"], "描述": "人形机器人整机组装和系统集成"}, "AI芯片(机器人端)": {"上游": ["芯片设计", "半导体制造"], "下游": ["整机集成"], "壁垒": 5, "国产化率": 15, "股票": ["688041", "688256"], "描述": "端侧AI推理芯片，海光/寒武纪布局"}}}, "AI算力": {"描述": "AI大模型训练和推理的基础设施，算力需求指数级增长", "环节": {"GPU/AI芯片": {"上游": ["IP授权", "代工制造"], "下游": ["AI服务器", "云计算"], "壁垒": 5, "国产化率": 15, "股票": ["688041", "688256", "600745"], "描述": "AI训练/推理芯片，海光DCU、寒武纪思元系列"}, "HBM/存储": {"上游": ["DRAM晶圆"], "下游": ["GPU/AI芯片", "AI服务器"], "壁垒": 5, "国产化率": 10, "股票": ["603986", "688008", "300223"], "描述": "高带宽存储接口芯片，澜起科技全球领先"}, "AI服务器": {"上游": ["GPU/AI芯片", "PCB", "散热", "电源"], "下游": ["云计算", "企业AI应用"], "壁垒": 2, "国产化率": 60, "股票": ["000977", "603019"], "描述": "AI服务器组装，壁垒低但受益于算力需求爆发"}, "光模块": {"上游": ["光芯片", "DSP芯片"], "下游": ["AI服务器", "数据中心"], "壁垒": 3, "国产化率": 60, "股票": ["300308", "300502"], "描述": "800G/1.6T高速光模块，中际旭创全球龙头"}, "PCB": {"上游": ["覆铜板", "铜箔"], "下游": ["AI服务器", "光模块"], "壁垒": 3, "国产化率": 50, "股票": ["002916", "002463", "002384"], "描述": "高多层高速PCB，深南电路/沪电股份AI服务器板核心供应商"}, "散热/液冷": {"上游": ["泵阀", "换热器"], "下游": ["AI服务器", "数据中心"], "壁垒": 3, "国产化率": 40, "股票": ["002150"], "描述": "AI服务器功耗飙升，液冷散热成标配"}, "EDA工具": {"上游": [], "下游": ["GPU/AI芯片", "所有芯片设计"], "壁垒": 5, "国产化率": 15, "股票": ["301269", "688206"], "描述": "芯片设计必需软件，华大九天国产EDA龙头"}, "云计算平台": {"上游": ["AI服务器", "光模块", "网络设备"], "下游": ["AI应用"], "壁垒": 3, "国产化率": 50, "股票": ["000977", "601728"], "描述": "算力租赁和云服务，竞争激烈但需求爆发"}}}, "AI应用": {"描述": "AI赋能各行各业，软件+硬件终端全面智能化", "环节": {"AI办公": {"上游": ["大模型API", "算力"], "下游": [], "壁垒": 3, "国产化率": 40, "股票": ["688111", "600588"], "描述": "AI+办公软件，金山办公WPS AI、用友YonGPT"}, "AI语音/视觉": {"上游": ["AI芯片", "大模型"], "下游": ["智能终端", "安防"], "壁垒": 3, "国产化率": 50, "股票": ["002230", "300222"], "描述": "科大讯飞星火大模型，AI语音和视觉识别"}, "AI+消费电子": {"上游": ["AI芯片", "屏幕", "电池"], "下游": [], "壁垒": 3, "国产化率": 40, "股票": ["002475", "002241", "688036", "601728"], "描述": "AI手机/AI PC换机潮，立讯精密/传音控股受益"}, "AI+内容": {"上游": ["大模型", "算力"], "下游": [], "壁垒": 2, "国产化率": 50, "股票": ["301231"], "描述": "AI生成内容（AIGC），荣信文化等出版传媒公司"}, "AI+医疗": {"上游": ["AI芯片", "医疗数据"], "下游": [], "壁垒": 4, "国产化率": 30, "股票": ["300760", "600276"], "描述": "AI辅助诊断、药物发现，迈瑞医疗AI影像"}, "AI+汽车(智驾)": {"上游": ["AI芯片", "传感器", "高精地图"], "下游": [], "壁垒": 4, "国产化率": 40, "股票": ["601127", "002594", "601689", "600660"], "描述": "智能驾驶，赛力斯/比亚迪智驾方案"}}}, "半导体": {"描述": "信息产业基石，国产替代持续深化", "环节": {"晶圆代工": {"上游": ["硅片", "电子特气", "光刻胶"], "下游": ["芯片设计公司"], "壁垒": 5, "国产化率": 20, "股票": ["688981", "688347"], "描述": "先进制程晶圆代工，中芯国际内地唯一"}, "半导体设备": {"上游": ["精密零部件", "软件"], "下游": ["晶圆代工", "封测"], "壁垒": 5, "国产化率": 25, "股票": ["002371", "688012", "688006"], "描述": "刻蚀/薄膜/清洗等设备，北方华创/中微公司双龙头"}, "半导体材料": {"上游": ["基础化工原料"], "下游": ["晶圆代工"], "壁垒": 4, "国产化率": 20, "股票": ["688126", "603650"], "描述": "硅片/光刻胶/电子特气，沪硅产业大硅片龙头"}, "芯片设计(逻辑)": {"上游": ["EDA", "IP授权"], "下游": ["终端应用"], "壁垒": 4, "国产化率": 25, "股票": ["688041", "688256", "688981", "603986", "300661", "688536", "688052", "300782", "688798", "688018", "688608", "688220", "688728", "688521", "300327", "300458", "300223", "688107", "688385", "600460", "603290", "688187"], "描述": "各类芯片设计，韦尔/兆易/圣邦等细分龙头"}, "封测": {"上游": ["封装设备", "封装材料"], "下游": ["终端品牌"], "壁垒": 2, "国产化率": 60, "股票": ["600584", "002156", "002185"], "描述": "封装测试代工，长电科技全球第三"}}}, "新能源": {"描述": "能源革命主线，从发电到储用到车全链条", "环节": {"锂电池": {"上游": ["锂资源", "正极材料", "负极材料"], "下游": ["新能源汽车", "储能"], "壁垒": 4, "国产化率": 70, "股票": ["300750", "300014", "002074"], "描述": "动力电池全球龙头，宁德时代市占率第一"}, "锂电材料": {"上游": ["锂/钴/镍矿"], "下游": ["锂电池"], "壁垒": 3, "国产化率": 65, "股票": ["603659", "002812"], "描述": "正极/负极/电解液/隔膜，璞泰来负极龙头"}, "光伏": {"上游": ["硅料", "硅片"], "下游": ["组件", "电站"], "壁垒": 3, "国产化率": 80, "股票": ["601012", "600438", "002129", "688599", "688223", "603806", "601865"], "描述": "光伏全产业链，隆基/通威/晶科全球龙头"}, "逆变器/储能": {"上游": ["IGBT", "电容", "电感"], "下游": ["光伏电站", "家庭储能"], "壁垒": 3, "国产化率": 60, "股票": ["300274", "002150"], "描述": "光伏逆变器和储能系统，阳光电源全球龙头"}, "锂电设备": {"上游": ["精密制造"], "下游": ["锂电池制造"], "壁垒": 3, "国产化率": 60, "股票": ["300450", "688006"], "描述": "锂电池生产设备，先导智能全球龙头"}, "新能源汽车": {"上游": ["锂电池", "电机电控", "汽车电子"], "下游": ["充电桩", "后市场"], "壁垒": 3, "国产化率": 50, "股票": ["002594", "601127", "601633", "600104", "000625", "601238"], "描述": "新能源整车，比亚迪/赛力斯/长城全面发力"}}}, "消费": {"描述": "必选消费+可选消费，品牌和渠道壁垒", "环节": {"白酒": {"上游": ["粮食", "包装"], "下游": ["经销商", "终端"], "壁垒": 5, "国产化率": 100, "股票": ["600519", "000858", "000568", "002304", "600809", "603369"], "描述": "品牌壁垒极高，茅台五粮液不可复制"}, "食品饮料": {"上游": ["农产品", "添加剂"], "下游": ["商超", "电商"], "壁垒": 4, "国产化率": 90, "股票": ["603288", "600887", "603345", "000895"], "描述": "海天/伊利/安井，品牌+渠道双壁垒"}, "家电": {"上游": ["压缩机", "芯片", "面板"], "下游": ["经销商", "电商"], "壁垒": 3, "国产化率": 80, "股票": ["000333", "000651"], "描述": "美的格力全球家电龙头，竞争趋缓利润改善"}, "养殖": {"上游": ["饲料", "疫苗"], "下游": ["屠宰", "食品加工"], "壁垒": 3, "国产化率": 90, "股票": ["002714", "300498"], "描述": "猪周期，牧原股份成本优势+规模壁垒"}, "汽车零部件(消费属性)": {"上游": ["钢材", "橡胶"], "下游": ["整车厂"], "壁垒": 3, "国产化率": 40, "股票": ["600660", "601058"], "描述": "福耀玻璃全球汽车玻璃龙头，赛轮轮胎"}}}, "化工/材料": {"描述": "基础化工到精细化工，周期成长兼备", "环节": {"化工龙头": {"上游": ["煤/油/气"], "下游": ["各种制造业"], "壁垒": 4, "国产化率": 70, "股票": ["600309", "600426", "600141", "600989"], "描述": "万华化学/华鲁恒升，成本优势+规模壁垒"}, "特种气体": {"上游": ["化工原料"], "下游": ["半导体", "面板"], "壁垒": 4, "国产化率": 25, "股票": ["688146"], "描述": "电子特种气体，中船特气等国产替代先锋"}, "精细化工": {"上游": ["基础化工"], "下游": ["医药", "农药", "日化"], "壁垒": 3, "国产化率": 50, "股票": ["600309"], "描述": "万华化学向精细化工和新材料延伸"}}}, "医药": {"描述": "人口老龄化+创新驱动，长坡厚雪赛道", "环节": {"创新药": {"上游": ["CRO/CDMO", "实验设备"], "下游": ["医院", "药店"], "壁垒": 5, "国产化率": 20, "股票": ["600276", "688235", "300760"], "描述": "恒瑞医药/百济神州，研发投入巨大"}, "医疗器械": {"上游": ["芯片", "精密加工"], "下游": ["医院", "诊所"], "壁垒": 4, "国产化率": 30, "股票": ["300760", "300003", "300595"], "描述": "迈瑞医疗国产器械龙头，AI辅助诊断"}, "CXO": {"上游": ["实验试剂", "设备"], "下游": ["创新药企"], "壁垒": 3, "国产化率": 50, "股票": ["603259"], "描述": "药明康德全球CRO/CDMO龙头"}}}, "国防军工": {"描述": "强国必先强军，装备升级+国产替代双驱动", "环节": {"航空装备": {"上游": ["钛合金", "复合材料"], "下游": ["空军装备"], "壁垒": 5, "国产化率": 60, "股票": ["600760", "600893", "000768", "600862", "600765", "600372", "000738"], "描述": "战斗机/运输机/发动机，中航沈飞/航发动力"}, "航天装备": {"上游": ["精密制造", "电子"], "下游": ["卫星", "火箭"], "壁垒": 5, "国产化率": 70, "股票": ["600879", "000901", "600391", "600151", "600855"], "描述": "卫星/火箭/导弹，航天电子/航天科技"}, "船舶": {"上游": ["钢材", "动力系统"], "下游": ["海军", "航运"], "壁垒": 4, "国产化率": 70, "股票": ["600150", "600685", "600072"], "描述": "中国船舶全球造船龙头，军船+民船双驱动"}, "军工电子": {"上游": ["芯片", "元器件"], "下游": ["武器系统"], "壁垒": 4, "国产化率": 40, "股票": ["002179", "600879", "300847"], "描述": "军用连接器/传感器/电子系统"}}}, "金融": {"描述": "经济血脉，估值低+分红高", "环节": {"银行": {"上游": ["存款", "央行"], "下游": ["贷款客户"], "壁垒": 4, "国产化率": 100, "股票": ["601398", "601939", "600036"], "描述": "国有大行，高股息+低估值"}, "券商": {"上游": ["交易所", "监管"], "下游": ["投资者", "企业"], "壁垒": 3, "国产化率": 100, "股票": ["600030", "300059"], "描述": "中信证券龙头，东方财富互联网券商"}, "保险": {"上游": ["再保险"], "下游": ["投保人"], "壁垒": 4, "国产化率": 90, "股票": ["601318"], "描述": "中国平安综合金融集团"}}}, "商业航天": {"描述": "太空经济新蓝海，卫星互联网+火箭回收", "环节": {"火箭制造": {"上游": ["发动机", "复合材料"], "下游": ["卫星发射"], "壁垒": 5, "国产化率": 60, "股票": ["600879", "600391"], "描述": "液体火箭/固体火箭，航天电子配套"}, "卫星制造": {"上游": ["芯片", "太阳能板"], "下游": ["卫星互联网", "遥感"], "壁垒": 4, "国产化率": 50, "股票": ["600151", "600855"], "描述": "低轨通信卫星/遥感卫星制造"}, "卫星互联网": {"上游": ["卫星制造", "火箭"], "下游": ["终端用户"], "壁垒": 4, "国产化率": 40, "股票": ["600879", "601728"], "描述": "星链竞争对手，中国版卫星互联网"}}}};
+const PRICE_DATA = {"prices": {"002230": {"price": 44.53, "chg": 0.93, "yearChg": -9.58, "volume": 231497, "amplitude": 2.14}, "\n688798": {"price": 67.3, "chg": 1.63, "yearChg": -12.19, "volume": 2525730, "amplitude": 3.61}, "\n300661": {"price": 109.41, "chg": 6.05, "yearChg": -6.21, "volume": 182395, "amplitude": 9.09}, "\n600855": {"price": 14.53, "chg": -1.69, "yearChg": -15.28, "volume": 65242, "amplitude": 2.76}, "\n688536": {"price": 288.98, "chg": 4.14, "yearChg": -5.26, "volume": 3656338, "amplitude": 3.86}, "\n002475": {"price": 69.06, "chg": 4.41, "yearChg": -4.68, "volume": 1387094, "amplitude": 6.05}, "\n601012": {"price": 12.78, "chg": 2.73, "yearChg": -12.47, "volume": 1343371, "amplitude": 4.99}, "\n688256": {"price": 1267.65, "chg": 1.38, "yearChg": -10.16, "volume": 7980234, "amplitude": 3.62}, "\n000651": {"price": 37.71, "chg": -1.05, "yearChg": -3.01, "volume": 317725, "amplitude": 1.3}, "\n688728": {"price": 13.4, "chg": 2.45, "yearChg": -11.9, "volume": 20895619, "amplitude": 4.31}, "\n688599": {"price": 13.48, "chg": 2.04, "yearChg": -18.6, "volume": 33065562, "amplitude": 5.41}, "\n300450": {"price": 44.11, "chg": 0.68, "yearChg": -10.62, "volume": 278281, "amplitude": 2.75}, "\n301269": {"price": 99.66, "chg": 4.74, "yearChg": -26.1, "volume": 134228, "amplitude": 6.29}, "\n688006": {"price": 34.05, "chg": 9.13, "yearChg": -1.37, "volume": 28926428, "amplitude": 10.98}, "\n000895": {"price": 24.11, "chg": -0.17, "yearChg": -1.67, "volume": 107455, "amplitude": 2.41}, "\n300660": {"price": 33.49, "chg": -3.38, "yearChg": -9.94, "volume": 105658, "amplitude": 5.05}, "\n688146": {"price": 253.88, "chg": 0.67, "yearChg": 78.79, "volume": 13790760, "amplitude": 9.57}, "\n688111": {"price": 225.48, "chg": 0.73, "yearChg": -7.09, "volume": 5981360, "amplitude": 3.63}, "\n300458": {"price": 31.58, "chg": 3.95, "yearChg": -15.99, "volume": 256006, "amplitude": 4.71}, "\n000568": {"price": 83.82, "chg": -0.88, "yearChg": -7.67, "volume": 63740, "amplitude": 1.68}, "\n300498": {"price": 12.61, "chg": -0.63, "yearChg": -9.15, "volume": 330771, "amplitude": 1.91}, "\n002304": {"price": 41.91, "chg": -0.8, "yearChg": -5.16, "volume": 35653, "amplitude": 1.67}, "\n600685": {"price": 25.56, "chg": -1.43, "yearChg": -12.7, "volume": 72325, "amplitude": 4.74}, "\n600150": {"price": 34.61, "chg": -0.63, "yearChg": -10.55, "volume": 649818, "amplitude": 3.43}, "\n300223": {"price": 158.03, "chg": 5.88, "yearChg": 5.64, "volume": 471017, "amplitude": 9.9}, "\n603806": {"price": 16.08, "chg": 0.44, "yearChg": -14.6, "volume": 390977, "amplitude": 6.31}, "\n601633": {"price": 16.51, "chg": 0.61, "yearChg": -5.39, "volume": 119025, "amplitude": 1.47}, "\n002150": {"price": 25.82, "chg": 1.29, "yearChg": -21.52, "volume": 103044, "amplitude": 4.73}, "\n600141": {"price": 27.98, "chg": 2.64, "yearChg": -17.51, "volume": 231089, "amplitude": 6.24}, "\n688347": {"price": 226.82, "chg": 6.09, "yearChg": 1.98, "volume": 20775279, "amplitude": 9.07}, "\n000901": {"price": 18.02, "chg": -1.42, "yearChg": -9.54, "volume": 150350, "amplitude": 3.53}, "\n688521": {"price": 223.36, "chg": 4.86, "yearChg": -16.08, "volume": 13263305, "amplitude": 5.05}, "\n002371": {"price": 615.01, "chg": 5.0, "yearChg": -8.24, "volume": 78456, "amplitude": 3.65}, "\n688981": {"price": 127.17, "chg": 4.31, "yearChg": -14.75, "volume": 61407573, "amplitude": 5.32}, "\n600030": {"price": 25.38, "chg": -0.2, "yearChg": -3.17, "volume": 747844, "amplitude": 1.31}, "\n002241": {"price": 23.63, "chg": 2.29, "yearChg": -12.81, "volume": 889332, "amplitude": 4.42}, "\n002129": {"price": 9.81, "chg": 9.98, "yearChg": 8.64, "volume": 3090734, "amplitude": 16.37}, "\n600893": {"price": 39.31, "chg": -0.63, "yearChg": -12.45, "volume": 179376, "amplitude": 3.51}, "\n002812": {"price": 61.54, "chg": 0.72, "yearChg": -12.49, "volume": 139581, "amplitude": 2.81}, "\n002156": {"price": 64.1, "chg": 2.96, "yearChg": -14.88, "volume": 1003013, "amplitude": 4.92}, "\n603369": {"price": 24.42, "chg": -4.53, "yearChg": -9.72, "volume": 119785, "amplitude": 5.19}, "\n600276": {"price": 45.93, "chg": -0.02, "yearChg": -6.27, "volume": 466610, "amplitude": 2.74}, "\n002050": {"price": 46.33, "chg": -2.22, "yearChg": -14.9, "volume": 995202, "amplitude": 3.65}, "\n600309": {"price": 69.0, "chg": -1.08, "yearChg": -9.6, "volume": 214511, "amplitude": 2.79}, "\n688126": {"price": 31.73, "chg": 20.01, "yearChg": 17.96, "volume": 215999000, "amplitude": 17.21}, "\n688223": {"price": 5.13, "chg": 1.18, "yearChg": -17.79, "volume": 89911194, "amplitude": 4.22}, "\n600760": {"price": 41.01, "chg": 1.01, "yearChg": -5.45, "volume": 126467, "amplitude": 2.98}, "\n601058": {"price": 12.53, "chg": 1.05, "yearChg": -4.5, "volume": 264058, "amplitude": 3.95}, "\n300003": {"price": 11.65, "chg": -0.6, "yearChg": -8.2, "volume": 149535, "amplitude": 2.07}, "\n600072": {"price": 9.81, "chg": -1.11, "yearChg": -18.45, "volume": 142244, "amplitude": 3.4}, "601238": {"price": 5.87, "chg": -1.01, "yearChg": -5.48, "volume": 159356, "amplitude": 2.58}, "\n300847": {"price": 14.18, "chg": -0.98, "yearChg": -4.32, "volume": 17410, "amplitude": 2.34}, "\n603650": {"price": 55.48, "chg": 6.77, "yearChg": -6.13, "volume": 150736, "amplitude": 7.4}, "\n688206": {"price": 40.65, "chg": 1.93, "yearChg": -9.75, "volume": 7637708, "amplitude": 3.28}, "\n300750": {"price": 393.5, "chg": 0.12, "yearChg": -2.24, "volume": 201910, "amplitude": 3.09}, "\n600765": {"price": 13.3, "chg": -0.67, "yearChg": -9.52, "volume": 99020, "amplitude": 1.59}, "\n603290": {"price": 111.61, "chg": 4.9, "yearChg": -16.04, "volume": 73133, "amplitude": 6.6}, "\n300308": {"price": 1187.91, "chg": 2.85, "yearChg": 7.7, "volume": 337444, "amplitude": 6.15}, "\n688235": {"price": 213.36, "chg": -0.56, "yearChg": -12.59, "volume": 2303194, "amplitude": 4.02}, "\n688017": {"price": 419.59, "chg": -2.02, "yearChg": 23.97, "volume": 16546825, "amplitude": 8.94}, "\n603019": {"price": 80.2, "chg": 2.15, "yearChg": -14.64, "volume": 244586, "amplitude": 2.02}, "\n300222": {"price": 13.39, "chg": -2.12, "yearChg": -19.19, "volume": 270300, "amplitude": 4.74}, "\n688608": {"price": 155.5, "chg": 2.65, "yearChg": -13.63, "volume": 2594629, "amplitude": 3.77}, "\n603986": {"price": 497.7, "chg": 5.0, "yearChg": -5.42, "volume": 347548, "amplitude": 5.42}, "\n600104": {"price": 11.25, "chg": -1.92, "yearChg": -8.24, "volume": 350312, "amplitude": 2.58}, "\n300782": {"price": 98.31, "chg": 4.73, "yearChg": -16.62, "volume": 197610, "amplitude": 8.24}, "\n601689": {"price": 66.6, "chg": -2.2, "yearChg": -6.32, "volume": 393574, "amplitude": 4.41}, "\n002463": {"price": 139.8, "chg": 2.04, "yearChg": 4.83, "volume": 1035951, "amplitude": 5.73}, "\n002384": {"price": 224.18, "chg": 5.25, "yearChg": 1.35, "volume": 590214, "amplitude": 5.74}, "\n300014": {"price": 55.36, "chg": 1.9, "yearChg": -12.63, "volume": 362477, "amplitude": 2.03}, "\n688008": {"price": 236.94, "chg": 5.63, "yearChg": -12.98, "volume": 44945273, "amplitude": 4.51}, "\n002916": {"price": 394.82, "chg": 6.81, "yearChg": -5.34, "volume": 137989, "amplitude": 9.92}, "\n600426": {"price": 26.78, "chg": -0.67, "yearChg": -11.82, "volume": 232528, "amplitude": 3.06}, "\n688052": {"price": 240.37, "chg": 7.49, "yearChg": -4.66, "volume": 4207544, "amplitude": 7.36}, "\n301231": {"price": 37.98, "chg": 6.99, "yearChg": 22.91, "volume": 162597, "amplitude": 14.24}, "\n688220": {"price": 92.3, "chg": 0.98, "yearChg": -16.62, "volume": 6737781, "amplitude": 2.86}, "\n002179": {"price": 36.83, "chg": 4.25, "yearChg": -6.71, "volume": 335956, "amplitude": 4.98}, "\n601939": {"price": 10.34, "chg": 0.1, "yearChg": 0.29, "volume": 999418, "amplitude": 2.65}, "\n600745": {"price": 20.4, "chg": -2.44, "yearChg": 14.22, "volume": 406826, "amplitude": 7.13}, "\n603345": {"price": 88.8, "chg": 0.79, "yearChg": -7.53, "volume": 36146, "amplitude": 3.42}, "\n600879": {"price": 21.24, "chg": -3.32, "yearChg": -0.19, "volume": 1263793, "amplitude": 4.44}, "\n000333": {"price": 82.24, "chg": -0.74, "yearChg": 3.38, "volume": 168079, "amplitude": 1.52}, "\n603259": {"price": 92.69, "chg": -3.45, "yearChg": -9.6, "volume": 705275, "amplitude": 6.3}, "\n002714": {"price": 33.96, "chg": -0.56, "yearChg": -11.3, "volume": 231579, "amplitude": 1.69}, "\n300059": {"price": 17.8, "chg": 0.45, "yearChg": -11.22, "volume": 1730457, "amplitude": 2.23}, "\n000858": {"price": 78.93, "chg": -1.29, "yearChg": -5.31, "volume": 165579, "amplitude": 1.42}, "\n300124": {"price": 74.34, "chg": -0.24, "yearChg": -7.51, "volume": 340513, "amplitude": 4.07}, "\n688107": {"price": 40.75, "chg": 5.13, "yearChg": -13.19, "volume": 10876862, "amplitude": 7.92}, "\n300327": {"price": 27.35, "chg": 3.99, "yearChg": -2.5, "volume": 150426, "amplitude": 5.11}, "\n600519": {"price": 1254.16, "chg": -0.7, "yearChg": -1.51, "volume": 22531, "amplitude": 0.83}, "\n688036": {"price": 56.31, "chg": -0.81, "yearChg": -10.48, "volume": 8004388, "amplitude": 5.13}, "\n002185": {"price": 17.54, "chg": 4.4, "yearChg": -6.05, "volume": 2232272, "amplitude": 5.47}, "\n600862": {"price": 17.18, "chg": -2.11, "yearChg": -7.58, "volume": 126775, "amplitude": 3.1}, "\n300607": {"price": 36.86, "chg": 6.78, "yearChg": 9.81, "volume": 666138, "amplitude": 15.43}, "\n603659": {"price": 27.24, "chg": 1.08, "yearChg": -11.99, "volume": 208749, "amplitude": 2.33}, "\n000768": {"price": 20.04, "chg": -1.04, "yearChg": -10.22, "volume": 149310, "amplitude": 2.6}, "\n600809": {"price": 116.6, "chg": -1.16, "yearChg": -7.96, "volume": 60171, "amplitude": 2.29}, "\n600989": {"price": 22.61, "chg": -4.19, "yearChg": -10.1, "volume": 731034, "amplitude": 4.23}, "\n600460": {"price": 34.25, "chg": 6.6, "yearChg": 1.03, "volume": 661694, "amplitude": 7.22}, "\n000977": {"price": 59.18, "chg": 2.23, "yearChg": -12.07, "volume": 357093, "amplitude": 2.45}, "300274": {"price": 152.58, "chg": 3.94, "yearChg": -14.76, "volume": 484410, "amplitude": 6.04}, "\n688385": {"price": 53.87, "chg": 2.71, "yearChg": -20.6, "volume": 11272877, "amplitude": 3.76}, "\n300595": {"price": 10.94, "chg": -1.44, "yearChg": -10.4, "volume": 53478, "amplitude": 2.2}, "\n600588": {"price": 10.72, "chg": 1.32, "yearChg": 0.19, "volume": 506897, "amplitude": 8.03}, "\n688012": {"price": 283.7, "chg": 6.87, "yearChg": -8.73, "volume": 17602953, "amplitude": 5.69}, "\n600584": {"price": 75.15, "chg": 6.9, "yearChg": -14.79, "volume": 1407232, "amplitude": 5.95}, "\n600887": {"price": 25.07, "chg": -1.18, "yearChg": -2.38, "volume": 451415, "amplitude": 2.72}, "\n688187": {"price": 55.29, "chg": 3.95, "yearChg": -5.47, "volume": 12608563, "amplitude": 6.91}, "\n600438": {"price": 13.07, "chg": 1.4, "yearChg": -14.58, "volume": 354148, "amplitude": 3.47}, "\n603288": {"price": 34.98, "chg": 2.67, "yearChg": -1.82, "volume": 193167, "amplitude": 3.34}, "\n600151": {"price": 11.8, "chg": -2.4, "yearChg": -16.9, "volume": 292439, "amplitude": 5.15}, "\n300760": {"price": 141.87, "chg": -0.61, "yearChg": -6.41, "volume": 47640, "amplitude": 2.03}, "\n300502": {"price": 785.0, "chg": 8.28, "yearChg": 12.14, "volume": 292349, "amplitude": 7.72}, "\n601318": {"price": 53.87, "chg": 0.92, "yearChg": -0.74, "volume": 489261, "amplitude": 1.37}, "\n600391": {"price": 31.45, "chg": 0.7, "yearChg": -22.48, "volume": 58754, "amplitude": 3.01}, "\n600372": {"price": 10.75, "chg": -0.83, "yearChg": -7.88, "volume": 206684, "amplitude": 2.25}, "\n002594": {"price": 90.96, "chg": -0.25, "yearChg": -5.79, "volume": 203577, "amplitude": 1.97}, "\n688041": {"price": 264.23, "chg": 1.74, "yearChg": -22.55, "volume": 23810096, "amplitude": 3.85}, "\n601865": {"price": 10.66, "chg": 0.85, "yearChg": -12.19, "volume": 160107, "amplitude": 3.77}, "\n600036": {"price": 38.42, "chg": -0.21, "yearChg": 3.84, "volume": 518709, "amplitude": 0.63}, "\n000625": {"price": 7.64, "chg": -2.05, "yearChg": -7.95, "volume": 565138, "amplitude": 3.02}, "\n002074": {"price": 29.01, "chg": 0.87, "yearChg": -15.32, "volume": 188488, "amplitude": 1.99}, "\n601127": {"price": 71.4, "chg": -2.06, "yearChg": -16.6, "volume": 181730, "amplitude": 3.59}, "\n600660": {"price": 53.29, "chg": 0.26, "yearChg": -0.37, "volume": 73507, "amplitude": 2.31}, "\n601398": {"price": 7.51, "chg": 0.13, "yearChg": 4.6, "volume": 4473685, "amplitude": 2.55}, "\n601728": {"price": 6.18, "chg": -0.48, "yearChg": 1.64, "volume": 902678, "amplitude": 1.63}, "\n603728": {"price": 65.57, "chg": -2.79, "yearChg": -6.33, "volume": 106325, "amplitude": 3.56}, "\n688018": {"price": 119.73, "chg": 4.1, "yearChg": -8.38, "volume": 5072793, "amplitude": 4.68}, "\n000738": {"price": 18.27, "chg": -1.19, "yearChg": -11.44, "volume": 86350, "amplitude": 2.42}}, "timestamp": "2026-06-09 13:59:05"};
+
+// ================================================================
+// 全局状态
+// ================================================================
+let currentIndustry = '人形机器人';
+let stockPrices = {};  // code -> {price, chg, yearChg, monthChg, volume, amplitude}
+let useLiveData = false;  // 是否有实时数据
+let colorMetric = 'chg';
+let labelMode = 'both';
+let simulation = null;
+
+// 从嵌入的PRICE_DATA初始化
+if (PRICE_DATA && PRICE_DATA.prices) {
+  stockPrices = PRICE_DATA.prices;
+  useLiveData = true;
+  document.getElementById('update-time').textContent = '数据: ' + (PRICE_DATA.timestamp || '盘中') + ' (在线可刷新)';
+}
+
+// ================================================================
+// 行情数据获取
+// ================================================================
+async function fetchPrices() {
+  // 收集所有股票代码
+  const allCodes = new Set();
+  for (const ind of Object.values(INDUSTRY_DATA)) {
+    for (const link of Object.values(ind['环节'])) {
+      for (const c of link['股票']) allCodes.add(c);
+    }
+  }
+  const codes = [...allCodes];
+  
+  // 分批次请求腾讯API（每次最多30只）
+  const batchSize = 30;
+  const results = {};
+  
+  for (let i = 0; i < codes.length; i += batchSize) {
+    const batch = codes.slice(i, i + batchSize);
+    const qtCodes = batch.map(c => (c.startsWith('6') ? 'sh' : 'sz') + c);
+    try {
+      const url = 'https://qt.gtimg.cn/q=' + qtCodes.join(',') + '&_=' + Date.now();
+      const resp = await fetch(url);
+      const text = await resp.text();
+      
+      for (const line of text.split(';')) {
+        if (!line.trim() || !line.includes('~')) continue;
+        const parts = line.split('~');
+        const rawCode = parts[0] || '';
+        const code = rawCode.replace(/^(sh|sz)/, '');
+        const name = parts[1] || '';
+        const price = parseFloat(parts[3]) || 0;
+        const chg = parseFloat(parts[32]) || 0;
+        const yearChg = parseFloat(parts[69]) || 0;
+        const volume = parseInt(parts[6]) || 0;  // 成交量（手）
+        const high = parseFloat(parts[33]) || 0;
+        const low = parseFloat(parts[34]) || 0;
+        const amplitude = high && low ? ((high - low) / low * 100) : 0;
+        
+        results[code] = { price, chg, yearChg, monthChg: chg, volume, amplitude, name };
+      }
+    } catch (e) {
+      console.warn('Batch fetch error:', e);
+    }
+  }
+  
+  return results;
+}
+
+// ================================================================
+// 颜色映射
+// ================================================================
+function getColor(value, metric) {
+  if (value === null || value === undefined) return '#8b949e';
+  
+  let normalized;
+  switch (metric) {
+    case 'chg':
+    case 'yearChg':
+    case 'monthChg':
+      // 涨跌幅：-5%以下深红，-3%红，0灰，+3%绿，+5%深绿
+      if (value > 5) return '#00c853';
+      if (value > 3) return '#2ea043';
+      if (value > 1) return '#58a6ff';
+      if (value > 0) return '#8b949e';
+      if (value > -1) return '#8b949e';
+      if (value > -3) return '#f85149';
+      if (value > -5) return '#d73a49';
+      return '#7d1a2c';
+    case 'volume':
+      // 成交量（亿）
+      const v = value / 10000;
+      if (v > 100) return '#00c853';
+      if (v > 30) return '#2ea043';
+      if (v > 10) return '#58a6ff';
+      if (v > 3) return '#8b949e';
+      return '#6e7681';
+    case 'amplitude':
+      if (value > 10) return '#00c853';
+      if (value > 5) return '#2ea043';
+      if (value > 3) return '#58a6ff';
+      if (value > 1) return '#8b949e';
+      return '#6e7681';
+    default:
+      return '#8b949e';
+  }
+}
+
+// ================================================================
+// 构建图数据
+// ================================================================
+function buildGraphData(industryName, stocks) {
+  const industry = INDUSTRY_DATA[industryName];
+  if (!industry) return { nodes: [], links: [] };
+  
+  const links_data = industry['环节'];
+  const nodes = [];
+  const links = [];
+  const nodeMap = {};  // code -> node index
+  
+  // 为每个环节创建"环节节点" + 股票节点
+  let nodeIdx = 0;
+  
+  for (const [linkName, linkData] of Object.entries(links_data)) {
+    // 环节节点
+    const linkNode = {
+      id: 'link_' + linkName,
+      name: linkName,
+      type: 'link',
+      code: null,
+      stocks: linkData['股票'].length,
+      barrier: linkData['壁垒'],
+      industry: industryName,
+      linkDesc: linkData['描述'],
+      upstream: linkData['上游'] || [],
+      downstream: linkData['下游'] || [],
+    };
+    nodes.push(linkNode);
+    nodeMap[linkNode.id] = nodeIdx;
+    nodeIdx++;
+    
+    // 股票节点
+    for (const code of linkData['股票']) {
+      const price = stocks[code] || {};
+      const yearChg = price.yearChg || 0;
+      const stockNode = {
+        id: code,
+        name: price.name || code,
+        code: code,
+        type: 'stock',
+        price: price.price || 0,
+        chg: price.chg || 0,
+        yearChg: price.yearChg || 0,
+        monthChg: price.monthChg || 0,
+        volume: price.volume || 0,
+        amplitude: price.amplitude || 0,
+        industry: industryName,
+        linkName: linkName,
+        barrier: linkData['壁垒'],
+      };
+      nodes.push(stockNode);
+      nodeMap[code] = nodeIdx;
+      
+      // 股票→环节 边
+      links.push({ source: code, target: 'link_' + linkName });
+      
+      nodeIdx++;
+    }
+  }
+  
+  // 环节间上下游边
+  for (const [linkName, linkData] of Object.entries(links_data)) {
+    const targetId = 'link_' + linkName;
+    for (const up of (linkData['上游'] || [])) {
+      // 找上游环节节点
+      for (const [otherName, otherData] of Object.entries(links_data)) {
+        if (otherName === up) {
+          links.push({ source: 'link_' + otherName, target: targetId });
+        }
+      }
+    }
+  }
+  
+  return { nodes, links };
+}
+
+// ================================================================
+// 渲染图
+// ================================================================
+function renderGraph(industryName) {
+  const svgEl = document.querySelector('#graph svg');
+  const width = document.getElementById('graph').clientWidth;
+  const height = document.getElementById('graph').clientHeight;
+  
+  svgEl.innerHTML = '';
+  
+  const data = buildGraphData(industryName, stockPrices);
+  if (data.nodes.length === 0) {
+    svgEl.innerHTML = '<text x="50%" y="50%" fill="#8b949e" text-anchor="middle" font-size="16">暂无数据</text>';
+    return;
+  }
+  
+  const svg = d3.select(svgEl);
+  const g = svg.append('g');
+  
+  // 缩放
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 4])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+  
+  // 力导向
+  simulation = d3.forceSimulation(data.nodes)
+    .force('link', d3.forceLink(data.links).id(d => d.id).distance(80))
+    .force('charge', d3.forceManyBody().strength(-250))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide(25));
+  
+  // 环节间的上下游边
+  const linkGroups = {};
+  data.links.forEach(l => {
+    const src = typeof l.source === 'object' ? l.source : null;
+    const tgt = typeof l.target === 'object' ? l.target : null;
+    if (src && tgt && src.type === 'link' && tgt.type === 'link') {
+      const key = src.id + '→' + tgt.id;
+      linkGroups[key] = { source: src, target: tgt };
+    }
+  });
+  
+  // 绘制环节间连线 (上游→下游)
+  const linkArrows = g.selectAll('.link')
+    .data(Object.values(linkGroups))
+    .enter().append('line')
+    .attr('class', 'link')
+    .attr('stroke', '#30363d')
+    .attr('stroke-width', 3)
+    .attr('stroke-dasharray', '5,3')
+    .attr('marker-end', 'url(#arrow)');
+  
+  // 箭头定义
+  svg.append('defs').append('marker')
+    .attr('id', 'arrow')
+    .attr('viewBox', '0 -5 10 10')
+    .attr('refX', 28)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('fill', '#58a6ff')
+    .attr('d', 'M0,-5L10,0L0,5');
+  
+  // 股票→环节连线 (实线)
+  const stockLinks = data.links.filter(l => {
+    const src = typeof l.source === 'object' ? l.source : null;
+    const tgt = typeof l.target === 'object' ? l.target : null;
+    return src && tgt && (src.type === 'stock' || tgt.type === 'stock');
+  });
+  
+  g.selectAll('.stock-link')
+    .data(stockLinks)
+    .enter().append('line')
+    .attr('class', 'stock-link')
+    .attr('stroke', '#21262d')
+    .attr('stroke-width', 1);
+  
+  // 节点
+  const node = g.selectAll('.node')
+    .data(data.nodes)
+    .enter().append('g')
+    .attr('class', 'node')
+    .call(d3.drag()
+      .on('start', dragStarted)
+      .on('drag', dragged)
+      .on('end', dragEnded));
+  
+  // 环节节点（方块）
+  node.filter(d => d.type === 'link')
+    .append('rect')
+    .attr('width', d => Math.max(70, d.name.length * 14))
+    .attr('height', 28)
+    .attr('x', d => -Math.max(70, d.name.length * 14) / 2)
+    .attr('y', -14)
+    .attr('rx', 6)
+    .attr('fill', d => {
+      if (d.barrier >= 5) return '#1a3a2a';
+      if (d.barrier >= 4) return '#1a2a3a';
+      if (d.barrier >= 3) return '#2a2a2a';
+      return '#21262d';
+    })
+    .attr('stroke', d => {
+      if (d.barrier >= 5) return '#2ea043';
+      if (d.barrier >= 4) return '#58a6ff';
+      if (d.barrier >= 3) return '#8b949e';
+      return '#30363d';
+    })
+    .attr('stroke-width', 2)
+    .style('cursor', 'pointer');
+  
+  // 环节文字
+  node.filter(d => d.type === 'link')
+    .append('text')
+    .text(d => d.name + (d.stocks > 0 ? ' (' + d.stocks + ')' : ''))
+    .attr('text-anchor', 'middle')
+    .attr('dy', '0.35em')
+    .attr('fill', '#c9d1d9')
+    .attr('font-size', '12px');
+  
+  // 股票节点（圆形）
+  node.filter(d => d.type === 'stock')
+    .append('circle')
+    .attr('r', 18)
+    .attr('fill', d => getColor(d[colorMetric] || 0, colorMetric))
+    .attr('stroke', d => {
+      if (d.chg > 5) return '#00c853';
+      if (d.chg > 2) return '#2ea043';
+      if (d.chg < -2) return '#f85149';
+      if (d.chg < -5) return '#d73a49';
+      return '#fff';
+    })
+    .style('cursor', 'pointer')
+    .on('mouseover', showTooltip)
+    .on('mousemove', moveTooltip)
+    .on('mouseout', hideTooltip)
+    .on('click', function(event, d) {
+      window.open('https://xueqiu.com/S/SH' + d.code, '_blank');
+    });
+  
+  // 股票文字
+  if (labelMode === 'stock' || labelMode === 'both') {
+    node.filter(d => d.type === 'stock')
+      .append('text')
+      .text(d => d.name.length > 4 ? d.name.slice(0, 4) : d.name)
+      .attr('text-anchor', 'middle')
+      .attr('dy', '3.5em')
+      .attr('fill', '#8b949e')
+      .attr('font-size', '10px');
+  }
+  
+  if (labelMode === 'link' || labelMode === 'both') {
+    node.filter(d => d.type === 'link')
+      .select('text')
+      .remove();
+    
+    node.filter(d => d.type === 'link')
+      .append('text')
+      .text(d => d.name)
+      .attr('text-anchor', 'middle')
+      .attr('dy', '-1.2em')
+      .attr('fill', '#58a6ff')
+      .attr('font-size', '12px')
+      .attr('font-weight', 'bold');
+    
+    node.filter(d => d.type === 'link')
+      .append('text')
+      .text(d => '🔒' + d.barrier + '/5')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '2em')
+      .attr('fill', '#8b949e')
+      .attr('font-size', '10px');
+  }
+  
+  // Simulation tick
+  simulation.on('tick', () => {
+    g.selectAll('.link')
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+    
+    g.selectAll('.stock-link')
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+    
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+
+// ================================================================
+// 拖拽
+// ================================================================
+function dragStarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+function dragEnded(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+// ================================================================
+// Tooltip
+// ================================================================
+const tooltip = document.createElement('div');
+tooltip.className = 'tooltip';
+tooltip.style.display = 'none';
+document.getElementById('graph').appendChild(tooltip);
+
+function showTooltip(event, d) {
+  const chgClass = d.chg >= 0 ? 'up' : 'down';
+  tooltip.innerHTML = `
+    <h3>${d.name} (${d.code})</h3>
+    <div class="row"><span class="label">所属环节</span><span>${d.linkName}</span></div>
+    <div class="row"><span class="label">壁垒评分</span><span>${d.barrier}/5</span></div>
+    <div class="row"><span class="label">价格</span><span>¥${d.price.toFixed(2)}</span></div>
+    <div class="row"><span class="label">今日涨幅</span><span class="${chgClass}">${d.chg >= 0 ? '+' : ''}${d.chg.toFixed(2)}%</span></div>
+    <div class="row"><span class="label">成交量</span><span>${(d.volume/10000).toFixed(1)}万手</span></div>
+    <div class="row"><span class="label">振幅</span><span>${d.amplitude.toFixed(1)}%</span></div>
+    <div style="margin-top:6px;font-size:11px;color:#8b949e">点击跳转雪球</div>
+  `;
+  tooltip.style.display = 'block';
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  const rect = document.getElementById('graph').getBoundingClientRect();
+  let x = event.clientX - rect.left + 15;
+  let y = event.clientY - rect.top - 10;
+  if (x + 300 > rect.width) x = event.clientX - rect.left - 290;
+  if (y + 200 > rect.height) y = rect.height - 210;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+
+function hideTooltip() {
+  tooltip.style.display = 'none';
+}
+
+// ================================================================
+// 侧边栏
+// ================================================================
+function buildSidebar() {
+  const list = document.getElementById('industry-list');
+  list.innerHTML = '';
+  
+  for (const [name, data] of Object.entries(INDUSTRY_DATA)) {
+    const totalStocks = new Set();
+    for (const link of Object.values(data['环节'])) {
+      for (const c of link['股票']) totalStocks.add(c);
+    }
+    
+    const btn = document.createElement('button');
+    btn.className = 'industry-btn' + (name === currentIndustry ? ' active' : '');
+    btn.innerHTML = `${name} <span class="badge">${totalStocks.size}</span>`;
+    btn.onclick = () => switchIndustry(name);
+    list.appendChild(btn);
+  }
+}
+
+function switchIndustry(name) {
+  currentIndustry = name;
+  document.querySelectorAll('.industry-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim().startsWith(name));
+  });
+  
+  const desc = INDUSTRY_DATA[name]?.描述 || '';
+  document.getElementById('industry-desc').textContent = '📌 ' + desc;
+  
+  renderGraph(name);
+}
+
+// ================================================================
+// 刷新数据
+// ================================================================
+async function refreshData() {
+  const btn = document.querySelector('.refresh-btn');
+  btn.textContent = '⏳ 加载中...';
+  btn.disabled = true;
+  
+  try {
+    stockPrices = await fetchPrices();
+    const now = new Date();
+    document.getElementById('update-time').textContent = '更新: ' + now.toLocaleTimeString('zh-CN');
+    renderGraph(currentIndustry);
+  } catch (e) {
+    console.error('Refresh failed:', e);
+  }
+  
+  btn.textContent = '🔄 刷新数据';
+  btn.disabled = false;
+}
+
+// ================================================================
+// 控件监听
+// ================================================================
+document.getElementById('color-metric').addEventListener('change', function() {
+  colorMetric = this.value;
+  renderGraph(currentIndustry);
+});
+
+document.getElementById('label-mode').addEventListener('change', function() {
+  labelMode = this.value;
+  renderGraph(currentIndustry);
+});
+
+// ================================================================
+// 初始化
+// ================================================================
+window.addEventListener('resize', () => renderGraph(currentIndustry));
+
+buildSidebar();
+switchIndustry('人形机器人');
+refreshData();
+</script>
+</body>
+</html>

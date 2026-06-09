@@ -395,46 +395,73 @@ def get_stock_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-    """Get OHLCV stock price data via mootdx."""
+    """Get OHLCV stock price data via DB (preferred) → mootdx → Sina fallback."""
     code = _normalize_ticker(symbol)
+    data_source = "SQLite DB (primary)"
 
-    data_source = "mootdx (TCP)"
     try:
-        client = _get_mootdx_client()
-        df = client.bars(symbol=code, category=4, offset=800)
+        # === 1. DB优先：从本地SQLite读取 ===
+        import sqlite3
+        DB_PATH = os.path.expanduser("~/.hermes/astock_data.db")
+        if os.path.exists(DB_PATH):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT date, open, high, low, close, volume, amount FROM daily_klines WHERE code = ? AND date >= ? AND date <= ? ORDER BY date",
+                      (code, start_date, end_date))
+            rows = c.fetchall()
+            conn.close()
 
-        if df is None or df.empty:
-            raise ValueError(f"No data from mootdx for {code}")
+            if rows and len(rows) > 10:
+                df = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume", "Amount"])
+                for col in ["Open", "High", "Low", "Close", "Volume", "Amount"]:
+                    df[col] = df[col].astype(float)
+                df["Date"] = pd.to_datetime(df["Date"])
+                logger.info("DB hit for %s: %d rows", code, len(df))
+            else:
+                # DB数据不够，走mootdx
+                raise ValueError(f"DB has insufficient data for {code}: {len(rows) if rows else 0} rows")
+        else:
+            raise ValueError(f"DB not found at {DB_PATH}")
 
-        # Drop duplicate datetime column + extra columns before reset_index
-        df = df.drop(
-            columns=["datetime", "year", "month", "day", "hour", "minute"],
-            errors="ignore",
-        )
-        df = df.reset_index()  # index 'datetime' → column 'datetime'
-        df = df.rename(
-            columns={
-                "datetime": "Date",
-                "open": "Open",
-                "close": "Close",
-                "high": "High",
-                "low": "Low",
-                "volume": "Volume",
-                "amount": "Amount",
-            }
-        )
-        df["Date"] = pd.to_datetime(df["Date"])
-
-    except Exception as e:
-        logger.warning("mootdx K-line failed for %s: %s, trying sina HTTP fallback", code, e)
-        # Fallback: Sina direct HTTP API
+    except Exception as db_err:
+        logger.warning("DB fallback for %s: %s", code, db_err)
+        # === 2. mootdx TCP ===
+        data_source = "mootdx (TCP)"
         try:
-            df = _sina_kline_fallback(code, start_date, end_date)
-            if df.empty:
-                return "K线数据获取失败：mootdx和新浪备用源均不可用，请检查网络连接"
-            data_source = "sina HTTP (fallback)"
-        except Exception:
-            return "K线数据获取失败：mootdx和新浪备用源均不可用，请检查网络连接"
+            client = _get_mootdx_client()
+            df = client.bars(symbol=code, category=4, offset=800)
+
+            if df is None or df.empty:
+                raise ValueError(f"No data from mootdx for {code}")
+
+            df = df.drop(
+                columns=["datetime", "year", "month", "day", "hour", "minute"],
+                errors="ignore",
+            )
+            df = df.reset_index()
+            df = df.rename(
+                columns={
+                    "datetime": "Date",
+                    "open": "Open",
+                    "close": "Close",
+                    "high": "High",
+                    "low": "Low",
+                    "volume": "Volume",
+                    "amount": "Amount",
+                }
+            )
+            df["Date"] = pd.to_datetime(df["Date"])
+
+        except Exception as e:
+            logger.warning("mootdx K-line failed for %s: %s, trying sina HTTP fallback", code, e)
+            # === 3. Sina HTTP fallback ===
+            try:
+                df = _sina_kline_fallback(code, start_date, end_date)
+                if df.empty:
+                    return "K线数据获取失败：DB/mootdx/新浪均不可用，请检查网络连接"
+                data_source = "sina HTTP (fallback)"
+            except Exception:
+                return "K线数据获取失败：DB/mootdx/新浪均不可用，请检查网络连接"
 
     # Filter by date range
     start_dt = pd.to_datetime(start_date)

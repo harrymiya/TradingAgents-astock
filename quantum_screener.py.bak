@@ -1,0 +1,701 @@
+#!/usr/bin/env python3
+"""
+quantum_screener.py — 8维度量化选股器
+
+基于TradingAgents框架的8位分析师逻辑，抽象为可量化的评分系统。
+每个维度0-10分，总分80分。
+
+输出：个股评分表 + 持仓策略建议
+"""
+
+import sqlite3
+import os
+import sys
+from datetime import datetime
+from collections import defaultdict
+
+DB = os.path.expanduser("~/.hermes/astock_data.db")
+
+
+def score_market(kline_60d):
+    """市场分析师 — 传统技术分析（均线/MACD/量价）"""
+    if not kline_60d or len(kline_60d) < 20:
+        return 0, "数据不足"
+    
+    closes = [r[4] for r in kline_60d]
+    highs = [r[2] for r in kline_60d]
+    lows = [r[3] for r in kline_60d]
+    volumes = [r[5] for r in kline_60d]
+    chgs = [r[6] for r in kline_60d if r[6] is not None]
+    last = kline_60d[-1]
+    
+    price = last[4]
+    score = 0
+    details = []
+    
+    # 1. 均线排列 (0-3分)
+    ma5 = sum(closes[-5:]) / 5
+    ma10 = sum(closes[-10:]) / 10
+    ma20 = sum(closes[-20:]) / 20
+    
+    ma_score = 0
+    if price > ma5: ma_score += 1
+    if ma5 > ma10: ma_score += 1
+    if ma10 > ma20: ma_score += 1
+    if price > ma20: ma_score += 1
+    
+    score += ma_score
+    details.append(f"均线{ma_score}/4")
+    
+    # 2. MACD状态 (0-2分)
+    ema12 = sum(closes[-12:]) / 12
+    ema26 = sum(closes[-26:]) / 26 if len(closes) >= 26 else sum(closes) / len(closes)
+    dif = ema12 - ema26
+    
+    macd_score = 0
+    if dif > 0: macd_score += 1  # DIF在零轴上
+    
+    # 判断MACD方向
+    if len(closes) >= 5:
+        ema12_5 = sum(closes[-6:-1]) / 5
+        ema26_5 = sum(closes[-21:-16]) / 5 if len(closes) >= 21 else ema12_5
+        dif_5 = ema12_5 - ema26_5
+        if dif > dif_5: macd_score += 1  # DIF在上升
+    
+    score += macd_score
+    details.append(f"MACD{macd_score}/2")
+    
+    # 3. 成交量 (0-2分)
+    avg_vol = sum(volumes) / len(volumes)
+    latest_vol = volumes[-1]
+    vol_ratio = latest_vol / avg_vol if avg_vol > 0 else 1
+    
+    vol_score = 0
+    if 0.7 < vol_ratio < 1.5: vol_score += 1  # 温和放量
+    if chgs[-1] > 0 and vol_ratio > 1.0: vol_score += 1  # 涨时放量
+    
+    score += vol_score
+    details.append(f"量能{vol_score}/2")
+    
+    # 4. 位置 (0-3分)
+    high_20d = max(closes[-20:])
+    low_20d = min(closes[-20:])
+    pos_20d = (price - low_20d) / (high_20d - low_20d) * 100 if high_20d != low_20d else 50
+    
+    pos_score = 0
+    if pos_20d < 30: pos_score += 2  # 低位
+    elif pos_20d < 50: pos_score += 1
+    if pos_20d < 20: pos_score += 1  # 超卖加分
+    
+    score += pos_score
+    details.append(f"位置{pos_score}/3")
+    
+    return score, "; ".join(details)
+
+
+def score_sentiment(kline_60d):
+    """情绪分析师 — RSI + 波动率 + 短线超卖"""
+    if not kline_60d or len(kline_60d) < 15:
+        return 0, "数据不足"
+    
+    closes = [r[4] for r in kline_60d]
+    chgs = [r[6] for r in kline_60d if r[6] is not None]
+    last = kline_60d[-1]
+    
+    score = 0
+    details = []
+    
+    # 1. RSI(14) (0-3分)
+    gains = []
+    losses = []
+    for i in range(1, 15):
+        if i < len(chgs):
+            if chgs[-i] > 0:
+                gains.append(chgs[-i])
+            else:
+                losses.append(abs(chgs[-i]))
+    
+    avg_gain = sum(gains) / max(len(gains), 1)
+    avg_loss = sum(losses) / max(len(losses), 1)
+    rs = avg_gain / max(avg_loss, 0.01)
+    rsi = 100 - 100 / (1 + rs)
+    
+    rsi_score = 0
+    if rsi < 30: rsi_score = 3      # 超卖
+    elif rsi < 40: rsi_score = 2    # 偏超卖
+    elif rsi < 50: rsi_score = 1
+    elif rsi > 70: rsi_score = 0    # 超买
+    
+    score += rsi_score
+    details.append(f"RSI{rsi:.0f}/{rsi_score}/3")
+    
+    # 2. 短线涨跌 (0-2分)
+    short_chgs = chgs[-5:] if len(chgs) >= 5 else chgs
+    
+    # 连跌天数
+    cons_down = 0
+    for c in reversed(short_chgs):
+        if c < 0: cons_down += 1
+        else: break
+    
+    cons_up = 0
+    for c in reversed(short_chgs):
+        if c > 0: cons_up += 1
+        else: break
+    
+    trend_score = 0
+    if cons_down >= 3: trend_score += 2  # 超跌
+    elif cons_down == 2: trend_score += 1
+    
+    score += trend_score
+    details.append(f"趋势{trend_score}/2 (连跌{cons_down}d)")
+    
+    # 3. 波动率 (0-2分)
+    amps = [r[7] for r in kline_60d if r[7] is not None]
+    avg_amp = sum(amps[-10:]) / 10 if len(amps) >= 10 else sum(amps) / len(amps)
+    
+    amp_score = 0
+    if avg_amp < 3: amp_score = 0       # 僵尸股
+    elif avg_amp < 5: amp_score = 1     # 正常
+    elif avg_amp < 8: amp_score = 2     # 活跃
+    else: amp_score = 1                 # 过于活跃（风险）
+    if last[6] is not None and abs(last[6]) < 5: amp_score += 0  # 无异常
+    
+    score += min(amp_score, 2)
+    details.append(f"波动{amp_score}/2")
+    
+    return score, "; ".join(details)
+
+
+def score_news(cur, code):
+    """新闻分析师 — 近期涨停/异动/龙虎榜"""
+    score = 0
+    details = []
+    
+    # 1. 近期涨停 (0-3分)
+    cur.execute("""
+        SELECT date, chg FROM feat WHERE code = ? AND date >= date('now', '-20 days')
+        AND chg IS NOT NULL ORDER BY date DESC
+    """, (code,))
+    chgs = cur.fetchall()
+    
+    limit_ups = sum(1 for r in chgs if r[1] >= 9.5)
+    limit_downs = sum(1 for r in chgs if r[1] <= -9.5)
+    
+    news_score = 0
+    if limit_ups >= 2: news_score = 3  # 双涨停强势
+    elif limit_ups == 1: news_score = 2  # 单涨停有异动
+    elif limit_ups == 0 and limit_downs == 0: news_score = 1  # 正常
+    
+    score += news_score
+    det = f"{'🔥'*limit_ups}{'💥'*limit_downs}" if limit_ups or limit_downs else "平静"
+    details.append(f"异动{news_score}/3 ({det})")
+    
+    # 2. 大阳线 (0-2分)
+    big_ups = sum(1 for r in chgs if r[1] >= 5)
+    big_score = 0
+    if big_ups >= 3: big_score = 2
+    elif big_ups >= 1: big_score = 1
+    score += big_score
+    details.append(f"大阳{big_score}/2 ({big_ups}次)")
+    
+    # 3. 近3日方向 (0-2分)
+    recent = chgs[:3] if len(chgs) >= 3 else chgs
+    up_count = sum(1 for r in recent if r[1] > 0)
+    dir_score = 0
+    if up_count >= 2: dir_score = 2
+    elif up_count >= 1: dir_score = 1
+    
+    score += dir_score
+    details.append(f"方向{dir_score}/2")
+    
+    return score, "; ".join(details)
+
+
+def score_fundamentals(cur, code, name):
+    """基本面分析师 — PE/PB（简化版，待接入财务数据）"""
+    score = 0
+    details = []
+    
+    # 简化版：用S3历史胜率作为基本面代理指标
+    cur.execute("""
+        SELECT COUNT(*), 
+               SUM(CASE WHEN ret5 > 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) as wr5
+        FROM feat WHERE code = ? AND pos_20d < 20 AND chg >= 3 AND chg < 7 
+          AND vr_5 >= 1.2 AND vr_5 < 2.5 AND ma20_pct < -8 AND ret5 IS NOT NULL
+    """, (code,))
+    r = cur.fetchone()
+    
+    if r and r[0] >= 3:
+        wr5 = r[1] * 100 if r[1] else 50
+        if wr5 > 70: score += 3
+        elif wr5 > 55: score += 2
+        elif wr5 > 40: score += 1
+        details.append(f"S3胜率{wr5:.0f}%")
+    
+    # 价格位置安全边际
+    cur.execute("SELECT MIN(pos_20d) FROM feat WHERE code = ? AND date >= date('now', '-10 days')", (code,))
+    r2 = cur.fetchone()
+    if r2 and r2[0] is not None:
+        low_pos = r2[0]
+        if low_pos < 20: score += 2
+        elif low_pos < 40: score += 1
+        details.append(f"近10日最低位{low_pos:.0f}")
+    
+    return score, "; ".join(details) if details else "暂无数据"
+
+
+def score_policy(cur, code, name):
+    """政策分析师 — 行业/概念/热点"""
+    score = 0
+    details = []
+    
+    # 关键词匹配
+    keywords = {
+        "信创": 2, "国产替代": 2, "AI": 2, "人工智能": 2, "算力": 2,
+        "华为": 1, "芯片": 2, "半导体": 2, "新能源": 1, "光伏": 1,
+        "储能": 1, "机器人": 2, "低空经济": 2, "军工": 1, "船舶": 1,
+        "数字": 1, "数据": 1, "金融科技": 1, "央企": 1, "国企": 1,
+        "消费": 1, "医药": 1, "创新药": 1, "证券": 0,
+    }
+    
+    matched = [kw for kw in keywords if kw in name]
+    for kw in matched:
+        score += keywords[kw]
+    
+    if matched:
+        details.append(f"题材: {', '.join(matched)}")
+    
+    # 创业板/主板加分
+    if code.startswith("30"):
+        score += 1
+        details.append("创业板+1")
+    elif code.startswith("00"):
+        score += 0
+    
+    # 流通市值（小盘加分）
+    cur.execute("SELECT SUM(close * volume) FROM feat WHERE code = ? AND date = (SELECT MAX(date) FROM feat)", (code,))
+    r = cur.fetchone()
+    if r and r[0]:
+        amount = r[0]
+        if amount < 5e8:  # 5亿以下
+            score += 2
+            details.append("小盘+2")
+        elif amount < 2e9:  # 20亿以下
+            score += 1
+            details.append("中小盘+1")
+    
+    return score, "; ".join(details) if details else "无题材匹配"
+
+
+def score_hot_money(kline_60d):
+    """游资/资金分析师（Hot Money）"""
+    if not kline_60d or len(kline_60d) < 10:
+        return 0, "数据不足"
+    
+    closes = [r[4] for r in kline_60d]
+    volumes = [r[5] for r in kline_60d]
+    chgs = [r[6] for r in kline_60d if r[6] is not None]
+    
+    score = 0
+    details = []
+    
+    avg_vol = sum(volumes) / len(volumes)
+    last_vol = volumes[-1]
+    vol_ratio = last_vol / avg_vol if avg_vol > 0 else 1
+    
+    # 1. 近期量能爆发 (0-3分)
+    max_vol_ratio = 0
+    peak_vol_5 = max(volumes[-5:]) / avg_vol if avg_vol > 0 else 1
+    if peak_vol_5 > 3: vol_score = 3
+    elif peak_vol_5 > 2: vol_score = 2
+    elif peak_vol_5 > 1.5: vol_score = 1
+    else: vol_score = 0
+    
+    score += vol_score
+    details.append(f"量爆{vol_score}/3(峰值{peak_vol_5:.1f}倍)")
+    
+    # 2. 连板/连涨潜力 (0-3分)
+    last_5_chgs = chgs[-5:] if len(chgs) >= 5 else chgs
+    cons_up = 0
+    for c in reversed(last_5_chgs):
+        if c > 0: cons_up += 1
+        else: break
+    
+    streak_score = 0
+    if cons_up >= 3: streak_score = 3
+    elif cons_up == 2: streak_score = 1
+    
+    score += streak_score
+    details.append(f"连涨{streak_score}/3({cons_up}d)")
+    
+    # 3. 缩量回调 (0-2分) — 游资低吸信号
+    if cons_up >= 2 and vol_ratio < 1.0:
+        score += 2
+        details.append("缩量回调+2")
+    elif vol_ratio < 0.8:
+        score += 1
+        details.append("缩量+1")
+    
+    # 4. 振幅活跃度 (0-2分)
+    amps = [r[7] for r in kline_60d if r[7] is not None]
+    recent_amps = amps[-5:] if len(amps) >= 5 else amps
+    avg_recent_amp = sum(recent_amps) / len(recent_amps) if recent_amps else 0
+    
+    if avg_recent_amp > 6: score += 2
+    elif avg_recent_amp > 4: score += 1
+    details.append(f"振幅{avg_recent_amp:.1f}%")
+    
+    return score, "; ".join(details)
+
+
+def score_lockup(cur, code):
+    """解禁/减持分析师 — 简化版"""
+    # 暂无解禁数据接口，统一返回中性
+    return 5, "暂无解禁数据(中性5分)"
+
+
+def score_chanlun(kline_60d):
+    """缠论分析师 — 底分型+背驰+买卖点"""
+    if not kline_60d or len(kline_60d) < 20:
+        return 0, "数据不足"
+    
+    closes = [r[4] for r in kline_60d]
+    lows = [r[3] for r in kline_60d]
+    highs = [r[2] for r in kline_60d]
+    volumes = [r[5] for r in kline_60d]
+    
+    score = 0
+    details = []
+    
+    # 1. 底分型检测 (0-3分)
+    # 简化的三K线底分型
+    last_3_closes = closes[-3:]
+    last_3_lows = lows[-3:]
+    last_3_highs = highs[-3:]
+    
+    bottom_fractal = (last_3_lows[1] <= last_3_lows[0] and 
+                      last_3_lows[1] <= last_3_lows[2] and
+                      last_3_highs[1] <= last_3_highs[0] and 
+                      last_3_highs[1] <= last_3_highs[2])
+    
+    top_fractal = (last_3_highs[1] >= last_3_highs[0] and 
+                   last_3_highs[1] >= last_3_highs[2] and
+                   last_3_lows[1] >= last_3_lows[0] and 
+                   last_3_lows[1] >= last_3_lows[2])
+    
+    if bottom_fractal:
+        # 检查是否是强底分型（第三根超过第一根高点）
+        strong = last_3_closes[2] > last_3_highs[0] if len(last_3_closes) > 2 else False
+        score += 3 if strong else 2
+        details.append(f"{'强' if strong else ''}底分型+{3 if strong else 2}")
+    elif top_fractal:
+        score += 0
+        details.append("顶分型+0")
+    else:
+        score += 1
+        details.append("无分型+1")
+    
+    # 2. 背驰检测 (0-3分)
+    if len(chgs := [r[6] for r in kline_60d if r[6] is not None]) >= 10:
+        # 比较最近两段同向下跌的幅度
+        recent_chgs = chgs[-10:]
+        down_chgs = [abs(c) for c in recent_chgs if c < 0]
+        if len(down_chgs) >= 3:
+            recent_down = sum(down_chgs[-3:])
+            prev_down = sum(down_chgs[-6:-3]) if len(down_chgs) >= 6 else recent_down
+            if recent_down < prev_down * 0.7:  # 跌幅收窄=底背驰
+                score += 3
+                details.append("底背驰+3")
+            elif recent_down < prev_down:
+                score += 1
+                details.append("弱势背驰+1")
+            else:
+                details.append("无背驰")
+    
+    # 3. MA20位置 (0-2分)
+    ma20 = sum(closes[-20:]) / 20
+    cur_price = closes[-1]
+    ma20_pct = (cur_price - ma20) / ma20 * 100
+    
+    if ma20_pct < -8:  # 深偏离=超卖
+        score += 2
+        details.append(f"MA20偏{ma20_pct:.0f}%+2")
+    elif ma20_pct < -3:
+        score += 1
+        details.append(f"MA20偏{ma20_pct:.0f}%+1")
+    else:
+        details.append(f"MA20偏{ma20_pct:.0f}%")
+    
+    # 4. 连续下跌天数 (0-2分)
+    cons_down = 0
+    for r in reversed(kline_60d):
+        if r[6] is not None and r[6] < 0:
+            cons_down += 1
+        else:
+            break
+    
+    if cons_down >= 4:
+        score += 2
+        details.append(f"连跌{cons_down}d+2")
+    elif cons_down >= 2:
+        score += 1
+        details.append(f"连跌{cons_down}d+1")
+    
+    return score, "; ".join(details)
+
+
+def scan_stock(code, name):
+    """对单只股票执行8维度评分"""
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+    
+    # 取60日完整K线
+    cur.execute("""
+        SELECT date, open, high, low, close, volume, chg, amp, vr_5, pos_20d, ma20_pct
+        FROM feat WHERE code = ? AND date >= date('now', '-90 days')
+        ORDER BY date
+    """, (code,))
+    klines = cur.fetchall()
+    
+    if not klines or len(klines) < 10:
+        conn.close()
+        return None
+    
+    # 8维度评分
+    scores = {}
+    
+    market_score, market_det = score_market(klines)
+    scores["市场"] = (market_score, market_det)
+    
+    sentiment_score, sentiment_det = score_sentiment(klines)
+    scores["情绪"] = (sentiment_score, sentiment_det)
+    
+    news_score, news_det = score_news(cur, code)
+    scores["事件"] = (news_score, news_det)
+    
+    fund_score, fund_det = score_fundamentals(cur, code, name)
+    scores["基本面"] = (fund_score, fund_det)
+    
+    policy_score, policy_det = score_policy(cur, code, name)
+    scores["政策"] = (policy_score, policy_det)
+    
+    hm_score, hm_det = score_hot_money(klines)
+    scores["游资"] = (hm_score, hm_det)
+    
+    lockup_score, lockup_det = score_lockup(cur, code)
+    scores["解禁"] = (lockup_score, lockup_det)
+    
+    chanlun_score, chanlun_det = score_chanlun(klines)
+    scores["缠论"] = (chanlun_score, chanlun_det)
+    
+    total = sum(v[0] for v in scores.values())
+    
+    conn.close()
+    
+    return {
+        "code": code,
+        "name": name,
+        "price": klines[-1][4],
+        "chg": klines[-1][6],
+        "total": total,
+        "scores": scores,
+        "klines": klines,
+    }
+
+
+def get_strategy(total, scores, klines=None):
+    """根据8维度总分+各维度分布，给出持仓策略"""
+    
+    market_s = scores.get("市场", (0, ""))[0]
+    sentiment_s = scores.get("情绪", (0, ""))[0]
+    news_s = scores.get("事件", (0, ""))[0]
+    chanlun_s = scores.get("缠论", (0, ""))[0]
+    hot_money_s = scores.get("游资", (0, ""))[0]
+    fund_s = scores.get("基本面", (0, ""))[0]
+    policy_s = scores.get("政策", (0, ""))[0]
+    
+    # ===== 策略分类 =====
+    
+    # 1. 主升浪追击策略（多维度共振）
+    if total >= 40 and market_s >= 6 and hot_money_s >= 6:
+        return {
+            "action": "BUY 🟢",
+            "position": "重仓(30-40%)",
+            "hold_days": "T+10以上（主升浪持有）",
+            "stop_loss": "-7%",
+            "reason": "多维度共振，趋势强劲，游资活跃"
+        }
+    
+    # 2. S3超跌反弹策略（缠论+情绪+市场=底部）
+    if (chanlun_s >= 6 or market_s >= 5) and sentiment_s >= 4 and total >= 32:
+        return {
+            "action": "BUY 🟢",
+            "position": "中仓(15-25%)",
+            "hold_days": "T+5（超跌反弹）",
+            "stop_loss": "-5%",
+            "reason": "超卖区域，缠论结构支撑，适合S3反弹"
+        }
+    
+    # 3. 题材潜伏策略（政策+基本面+位置低）
+    if policy_s >= 3 and total >= 30 and market_s >= 3:
+        return {
+            "action": "BUY 🟡",
+            "position": "轻仓(10-15%)",
+            "hold_days": "T+10~T+20（题材潜伏）",
+            "stop_loss": "-7%",
+            "reason": "政策面支撑，位置偏低，等待催化"
+        }
+    
+    # 4. 持有观望策略（中性）
+    if total >= 25:
+        return {
+            "action": "HOLD ⚪",
+            "position": "持有不变",
+            "hold_days": "观察",
+            "stop_loss": "已有止损不变",
+            "reason": "评分中性，不操作等待方向"
+        }
+    
+    # 5. 减仓策略（偏弱）
+    if total >= 20:
+        return {
+            "action": "REDUCE ⚠️",
+            "position": "减仓至30%",
+            "hold_days": "反弹减仓",
+            "stop_loss": "跌破MA20清仓",
+            "reason": "多项指标偏弱，控制风险"
+        }
+    
+    # 6. 卖出/回避策略（全面弱势）
+    return {
+        "action": "SELL 🔴",
+        "position": "清仓或空仓",
+        "hold_days": "不参与",
+        "stop_loss": "触及即走",
+        "reason": "多个维度弱势，不参与下跌趋势"
+    }
+
+
+def scan_top_n(top_n=20, sort_by="total"):
+    """全市场扫描TOP N"""
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT f.code, s.name, f.close, f.chg
+        FROM feat f JOIN stocks s ON f.code = s.code
+        WHERE f.date = (SELECT MAX(date) FROM feat)
+          AND f.code NOT LIKE '688%' AND s.name NOT LIKE '%ST%'
+        ORDER BY f.chg DESC
+    """)
+    candidates = cur.fetchall()
+    conn.close()
+    
+    print(f"全市场候选: {len(candidates)}只")
+    print(f"正在8维度评分...")
+    
+    results = []
+    for code, name, price, chg in candidates[:200]:  # 先扫前200
+        r = scan_stock(code, name)
+        if r:
+            results.append(r)
+    
+    # 排序
+    results.sort(key=lambda x: -x["total"])
+    
+    # 输出
+    print(f"\n{'='*80}")
+    print(f"  🏆 8维度量化选股 TOP {min(top_n, len(results))}")
+    print(f"  {'='*80}")
+    print(f"\n{'#':>3} {'代码':>6} {'名称':<10} {'价格':>7} {'涨跌':>7} {'总分':>4}/80 {'市':>3} {'情':>3} {'事':>3} {'基':>3} {'政':>3} {'游':>3} {'解':>3} {'缠':>3} {'策略':<20}")
+    print(f"  {'-'*90}")
+    
+    dims = ["市场", "情绪", "事件", "基本面", "政策", "游资", "解禁", "缠论"]
+    
+    for i, r in enumerate(results[:top_n]):
+        st = get_strategy(r["total"], r["scores"])
+        dim_vals = [r["scores"].get(d, (0,""))[0] for d in dims]
+        chg_str = f"{r['chg']:+.1f}%" if r['chg'] is not None else "N/A"
+        print(f"  {i+1:>3} {r['code']:>6} {r['name']:<10} {r['price']:>7.2f} {chg_str:>7} {r['total']:>4} "
+              f"{' '.join(f'{v:>3}' for v in dim_vals)} {st['action']:<8}")
+    
+    # 输出每个的策略详情
+    print(f"\n{'='*80}")
+    print(f"  📋 策略详情")
+    print(f"  {'='*80}")
+    
+    for i, r in enumerate(results[:top_n]):
+        st = get_strategy(r["total"], r["scores"])
+        print(f"\n  {i+1}. {r['code']} {r['name']} (总分{r['total']}/80)")
+        print(f"     操作: {st['action']} | 仓位: {st['position']} | 持有: {st['hold_days']} | 止损: {st['stop_loss']}")
+        print(f"     理由: {st['reason']}")
+        # 各维度详情
+        for d in dims:
+            v, det = r["scores"].get(d, (0, ""))
+            det_str = f" ({det})" if det else ""
+            bar = "█" * v + "░" * (10 - v)
+            print(f"     {d}: {bar} {v}/10{det_str}")
+    
+    return results
+
+
+def analyze_holdings(codes_with_cost):
+    """分析持仓股"""
+    print(f"\n{'='*80}")
+    print(f"  📌 持仓分析")
+    print(f"{'='*80}")
+    
+    for code, name, cost in codes_with_cost:
+        r = scan_stock(code, name)
+        if not r:
+            print(f"\n  {code} {name}: 数据不足")
+            continue
+        
+        st = get_strategy(r["total"], r["scores"])
+        pnl = (r["price"] - cost) / cost * 100
+        
+        print(f"\n  ▶ {code} {name} (成本{cost:.2f} → 现{r['price']:.2f} | {pnl:+.1f}%)")
+        print(f"     8维总分: {r['total']}/80")
+        print(f"     操作: {st['action']} | 仓位: {st['position']} | 止损: {st['stop_loss']}")
+        print(f"     理由: {st['reason']}")
+        
+        dims = ["市场", "情绪", "事件", "基本面", "政策", "游资", "解禁", "缠论"]
+        for d in dims:
+            v, det = r["scores"].get(d, (0, ""))
+            det_str = f" ({det})" if det else ""
+            bar = "█" * v + "░" * (10 - v)
+            print(f"       {d}: {bar} {v}/10{det_str}")
+
+
+if __name__ == "__main__":
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--holdings":
+        holdings = [
+            ("301231", "荣信文化", 34.62),
+            ("300550", "和仁科技", 14.63),
+            ("600503", "华丽家族", 2.82),
+            ("603586", "金麒麟", 17.63),
+        ]
+        analyze_holdings(holdings)
+    elif len(sys.argv) > 2 and sys.argv[1] == "--stock":
+        code = sys.argv[2]
+        conn = sqlite3.connect(DB)
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM stocks WHERE code=?", (code,))
+        r = cur.fetchone()
+        conn.close()
+        if r:
+            result = scan_stock(code, r[0])
+            if result:
+                st = get_strategy(result["total"], result["scores"])
+                print(f"\n  {code} {r[0]} 8维度评分: {result['total']}/80")
+                print(f"  操作: {st['action']} | {st['position']} | {st['reason']}")
+                for d, (v, det) in result["scores"].items():
+                    bar = "█" * v + "░" * (10 - v)
+                    print(f"    {d}: {bar} {v}/10 {det}")
+        else:
+            print(f"股票{code}未找到")
+    else:
+        scan_top_n(15)
