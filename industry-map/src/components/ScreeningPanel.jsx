@@ -12,7 +12,6 @@ const STRATEGY_META = {
 
 async function fetchRealTimePrices(codes) {
   if (!codes || codes.length === 0) return {};
-  // 每批30个，从腾讯API拉实时数据
   const results = {};
   const BATCH = 30;
   for (let i = 0; i < codes.length; i += BATCH) {
@@ -40,11 +39,38 @@ async function fetchRealTimePrices(codes) {
   return results;
 }
 
+/** 分析状态信息显示组件 */
+function AnalysisInfo({ analysisResult, analysisError, analyzing }) {
+  if (analyzing) {
+    return <div className="analysis-info analyzing">⏳ 正在深度分析（8位分析师辩论中，约3-5分钟）...</div>;
+  }
+  if (analysisError) {
+    return <div className="analysis-info error">❌ 分析失败: {analysisError}</div>;
+  }
+  if (analysisResult && analysisResult.status === 'ok') {
+    const r = analysisResult;
+    return (
+      <div className="analysis-info done">
+        <div><strong>✅ 分析完成</strong>（{r.elapsed || '?'}秒）</div>
+        {r.judge_decision && (
+          <div className="analysis-judge">⚖️ 裁判判决: {r.judge_decision.slice(0, 200)}</div>
+        )}
+        {r.trader_plan && (
+          <div className="analysis-plan">📋 交易计划: {r.trader_plan.slice(0, 200)}</div>
+        )}
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
   const [activeStrategy, setActiveStrategy] = useState(null);
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
+  // 异步分析状态
+  const [analysisState, setAnalysisState] = useState({});  // { code: { analyzing, result, error } }
 
   const runStrategy = useCallback(async (strategy) => {
     setActiveStrategy(strategy);
@@ -63,7 +89,6 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
       if (data.error) {
         setError(prev => ({ ...prev, [strategy]: data.error }));
       } else {
-        // 拉取实时行情替换chg和close
         const codes = (data.results || []).map(r => r.code);
         const realTime = await fetchRealTimePrices(codes);
         const merged = (data.results || []).map(r => {
@@ -82,15 +107,86 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
     }
   }, [results]);
 
-  const handleClickStock = (item) => {
+  /** 启动分析 + 轮询状态 */
+  const startAnalysis = useCallback(async (code) => {
+    setAnalysisState(prev => ({ ...prev, [code]: { analyzing: true, result: null, error: null } }));
+
+    try {
+      // 提交分析任务
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'analyze_stock', code }),
+      });
+      const data = await resp.json();
+
+      if (data.cached && data.result) {
+        setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: data.result, error: null } }));
+        return;
+      }
+
+      if (data.error) {
+        setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: null, error: data.error } }));
+        return;
+      }
+
+      const taskId = data.task_id;
+      if (!taskId) {
+        setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: null, error: '无task_id' } }));
+        return;
+      }
+
+      // 轮询结果
+      let attempts = 0;
+      const maxAttempts = 120;  // 最多等10分钟（5秒/次）
+      const poll = async () => {
+        attempts++;
+        try {
+          const statusResp = await fetch(`/api/analyze_status?task_id=${taskId}&code=${code}`);
+          const status = await statusResp.json();
+
+          if (status.status === 'ok' && status.result) {
+            setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: status.result, error: null } }));
+            return;
+          }
+          if (status.status === 'error') {
+            setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: null, error: status.error } }));
+            return;
+          }
+        } catch (e) {
+          // 轮询错误忽略，继续重试
+        }
+
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        } else {
+          setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: null, error: '分析超时' } }));
+        }
+      };
+
+      poll();
+    } catch (e) {
+      setAnalysisState(prev => ({ ...prev, [code]: { analyzing: false, result: null, error: e.message } }));
+    }
+  }, []);
+
+  const handleClickStock = useCallback((item) => {
+    // 通知父组件（跳产业链/选中）
     if (onSelectScreening) {
       onSelectScreening(item);
     }
-  };
+    // 启动异步分析
+    if (item.code) {
+      startAnalysis(item.code);
+    }
+  }, [onSelectScreening, startAnalysis]);
 
   const currentData = activeStrategy ? results[activeStrategy] : null;
   const currentResults = currentData?.results || [];
   const currentMeta = STRATEGY_META[activeStrategy] || {};
+
+  // 当前选中股票的分析状态
+  const selectedAnalysis = selectedCode ? analysisState[selectedCode] : null;
 
   return (
     <div className="screening-panel">
@@ -111,13 +207,22 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
         ))}
       </div>
 
+      {/* 分析状态信息 */}
+      {selectedCode && selectedAnalysis && (
+        <AnalysisInfo
+          analysisResult={selectedAnalysis.result}
+          analysisError={selectedAnalysis.error}
+          analyzing={selectedAnalysis.analyzing}
+        />
+      )}
+
       {error[activeStrategy] && (
         <div className="screening-error">{error[activeStrategy]}</div>
       )}
 
       {activeStrategy && !loading[activeStrategy] && currentData && (
         <div className="screening-summary">
-          共 {currentData.count} 只 → Top10（评分排名）
+          共 {currentData.count} 只 → Top10（评分排名）｜点击任一只启动深度分析
         </div>
       )}
 
@@ -130,10 +235,12 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
           {currentResults.map((item) => {
             const isSelected = selectedCode && item.code === selectedCode;
             const chg = parseFloat(item.chg) || 0;
+            const itemAnalysis = analysisState[item.code];
+            const itemAnalyzing = itemAnalysis?.analyzing;
             return (
               <div
                 key={item.code}
-                className={`screening-item ${isSelected ? 'selected' : ''}`}
+                className={`screening-item ${isSelected ? 'selected' : ''} ${itemAnalyzing ? 'analyzing' : ''}`}
                 onClick={() => handleClickStock(item)}
               >
                 <div className="screening-item-header">
@@ -148,6 +255,7 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
                     {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                   </span>
                   <span className="screening-price">{item.close?.toFixed(2)}</span>
+                  {itemAnalyzing && <span className="screening-spin">🔄</span>}
                 </div>
                 {item.strategy && (
                   <div className="screening-item-detail">

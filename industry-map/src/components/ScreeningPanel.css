@@ -219,6 +219,46 @@
   flex-shrink: 0;
 }
 
+.screening-spin {
+  font-size: 10px;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+.analysis-info {
+  font-size: 11px;
+  padding: 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.analysis-info.analyzing {
+  background: #1a253b;
+  color: #58a6ff;
+  border: 1px solid #30363d;
+}
+
+.analysis-info.error {
+  background: #2d1215;
+  color: #ff6b6b;
+  border: 1px solid #30363d;
+}
+
+.analysis-info.done {
+  background: #112a1a;
+  color: #7ee787;
+  border: 1px solid #30363d;
+}
+
+.analysis-judge, .analysis-plan {
+  font-size: 10px;
+  color: #c9d1d9;
+  margin-top: 4px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
 .screening-detail-text {
   font-size: 10px;
   color: #6e7681;
