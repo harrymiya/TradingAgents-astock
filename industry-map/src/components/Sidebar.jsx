@@ -93,7 +93,12 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
       const heatInfo = industryHeat[name] || { avgChg: 0 };
       list.push({ name, links: linksCount, stocks, avgChg: heatInfo.avgChg, completeness: score });
     }
-    list.sort((a, b) => b.avgChg - a.avgChg);
+    list.sort((a, b) => {
+      // 完整度为0的排最后
+      if (a.completeness === 0 && b.completeness > 0) return 1;
+      if (b.completeness === 0 && a.completeness > 0) return -1;
+      return b.avgChg - a.avgChg;
+    });
     return list;
   }, [industries, industryHeat]);
 
