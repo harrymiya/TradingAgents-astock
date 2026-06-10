@@ -7,15 +7,17 @@ export default function IndustrySwitcher({ chains, current, onSwitch }) {
   return (
     <div className="industry-switcher">
       <span className="switcher-label">所属产业链：</span>
-      <select
-        className="switcher-select"
-        value={current}
-        onChange={(e) => onSwitch(e.target.value)}
-      >
+      <div className="switcher-list">
         {chains.map((name) => (
-          <option key={name} value={name}>{name}</option>
+          <button
+            key={name}
+            className={`switcher-btn ${name === current ? 'active' : ''}`}
+            onClick={() => onSwitch(name)}
+          >
+            {name}
+          </button>
         ))}
-      </select>
+      </div>
     </div>
   );
 }

@@ -159,15 +159,19 @@ export default function App() {
 
     if (chains.length > 0) {
       setCurrentIndustry(chains[0]);
+      setSelectedNode({ code, name: item.name, type: 'stock', id: code });
+      setScreeningInfo({
+        code: item.code, name: item.name,
+        strategy: item.strategy, detail: item.detail,
+        chg: item.chg, close: item.close,
+      });
+    } else {
+      // 无匹配产业链 → 清空画布
+      setCurrentIndustry(null);
+      setSelectedNode(null);
+      setScreeningInfo(null);
     }
-    // 设置为选中节点
-    setSelectedNode({ code, name: item.name, type: 'stock', id: code });
     setDetailHistory([]);
-    setScreeningInfo({
-      code: item.code, name: item.name,
-      strategy: item.strategy, detail: item.detail,
-      chg: item.chg, close: item.close,
-    });
   }, []);
 
   // 下拉框切换产业链
@@ -188,13 +192,6 @@ export default function App() {
         selectedCode={screeningCode}
       />
       <div className="main">
-        {availableChains.length > 1 && screeningCode && (
-          <IndustrySwitcher
-            chains={availableChains}
-            current={currentIndustry}
-            onSwitch={handleSwitchIndustry}
-          />
-        )}
         <Controls
           colorMetric={colorMetric}
           onColorMetricChange={setColorMetric}
@@ -205,6 +202,13 @@ export default function App() {
           lastUpdate={lastUpdate}
         />
         <div className="graph-container" ref={graphRef}>
+          {availableChains.length > 1 && screeningCode && (
+            <IndustrySwitcher
+              chains={availableChains}
+              current={currentIndustry}
+              onSwitch={handleSwitchIndustry}
+            />
+          )}
           {hasIndustry ? (
             <GraphCanvas
               layoutMode={layoutMode}
