@@ -170,6 +170,23 @@
   text-align: right;
 }
 
+.screening-score {
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+  color: #8b949e;
+}
+
+.screening-score.high {
+  color: #d29922;
+}
+
+.screening-score.mid {
+  color: #58a6ff;
+}
+
 .screening-chg.up {
   color: #ff6b6b;
 }

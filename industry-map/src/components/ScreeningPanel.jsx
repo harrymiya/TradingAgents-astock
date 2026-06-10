@@ -117,10 +117,7 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
 
       {activeStrategy && !loading[activeStrategy] && currentData && (
         <div className="screening-summary">
-          共 {currentData.count} 只符合条件的股票
-          {currentData.s3_count !== undefined && (
-            <> (S3: {currentData.s3_count} | 三买: {currentData.sanmai_count})</>
-          )}
+          共 {currentData.count} 只 → Top10（评分排名）
         </div>
       )}
 
@@ -142,6 +139,11 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
                 <div className="screening-item-header">
                   <span className="screening-code">{item.code}</span>
                   <span className="screening-name">{item.name}</span>
+                  {item.total_score !== undefined && (
+                    <span className={`screening-score ${item.total_score >= 12 ? 'high' : item.total_score >= 9 ? 'mid' : ''}`}>
+                      {item.total_score}分
+                    </span>
+                  )}
                   <span className={`screening-chg ${chg >= 0 ? 'up' : 'down'}`}>
                     {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                   </span>
