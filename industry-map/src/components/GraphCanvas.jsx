@@ -212,15 +212,15 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
           .attr('stroke-width', 1.5)
           .attr('rx', 4).attr('ry', 4);
       } else {
-        // 环节节点用发光圈
-        group.insert('circle', ':first-child')
+        // 环节节点用蓝色矩形框（力导向图用局部坐标）
+        group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
-          .attr('cx', d.x).attr('cy', d.y)
-          .attr('r', (d.r || 22) + 5)
+          .attr('x', -(d.r || 22) - 8).attr('y', -(d.r || 22) - 8)
+          .attr('width', (d.r || 22) * 2 + 16).attr('height', (d.r || 22) * 2 + 16)
           .attr('fill', 'none')
           .attr('stroke', '#58a6ff')
-          .attr('stroke-width', 2)
-          .attr('stroke-opacity', 0.5);
+          .attr('stroke-width', 1.5)
+          .attr('rx', 4).attr('ry', 4);
       }
     });
   } else {
@@ -672,15 +672,15 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
           .attr('stroke-width', 1.5)
           .attr('rx', 4).attr('ry', 4);
       } else {
-        // 环节节点用发光圈
-        group.insert('circle', ':first-child')
+        // 环节节点用蓝色矩形框
+        group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
-          .attr('cx', d.x).attr('cy', d.y)
-          .attr('r', (d.r || 22) + 5)
+          .attr('x', d.x - (d.r || 22) - 8).attr('y', d.y - (d.r || 22) - 8)
+          .attr('width', (d.r || 22) * 2 + 16).attr('height', (d.r || 22) * 2 + 16)
           .attr('fill', 'none')
           .attr('stroke', '#58a6ff')
-          .attr('stroke-width', 2)
-          .attr('stroke-opacity', 0.5);
+          .attr('stroke-width', 1.5)
+          .attr('rx', 4).attr('ry', 4);
       }
     });
   } else {
