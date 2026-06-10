@@ -1,16 +1,23 @@
 .kline-panel {
-  position: relative;
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  z-index: 100;
   background: #0d1117;
-  border-top: 1px solid #30363d;
+  border: 1px solid #30363d;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
   padding: 0 16px 8px;
-  flex-shrink: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
   min-height: 80px;
+  max-height: 80vh;
 }
 
-/* 拖拽手柄 */
+/* 顶部拖拽手柄 — 可拖拽等比缩放 */
 .kline-drag-handle {
   height: 10px;
   cursor: row-resize;
@@ -23,7 +30,7 @@
   background: transparent;
 }
 .kline-drag-handle:hover {
-  background: rgba(48, 54, 61, 0.3);
+  background: rgba(48, 54, 61, 0.4);
 }
 .kline-drag-dots {
   display: flex;

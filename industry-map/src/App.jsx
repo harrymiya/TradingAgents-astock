@@ -247,15 +247,15 @@ export default function App() {
               <Tooltip data={tooltip} onClose={() => setTooltip(null)} />
             )}
           </div>
-          {/* K线面板：点击公司/环节的股票时显示在拓扑图下方 */}
-          {klineStock && (
-            <KlinePanel
-              code={klineStock.code}
-              name={klineStock.name}
-              onClose={() => setKlineStock(null)}
-            />
-          )}
         </div>
+        {/* K线面板：悬浮在拓扑图下方居中位置 */}
+        {klineStock && (
+          <KlinePanel
+            code={klineStock.code}
+            name={klineStock.name}
+            onClose={() => setKlineStock(null)}
+          />
+        )}
       </div>
       <DetailPanel
         selectedNode={selectedNode}

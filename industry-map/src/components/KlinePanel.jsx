@@ -4,9 +4,9 @@ import './KlinePanel.css';
 const API_URL = '/api/kline';
 
 /**
- * KlinePanel — 产业地图底部K线图组件
- * 放在 graph-container 内部，可拖拽调整高度
- * SVG铺满容器，支持60/120/250日切换、十字光标+Tooltip
+ * KlinePanel — 悬浮在拓扑图下方的K线面板
+ * absolute定位，可拖拽顶部边缘调整高度，可关闭
+ * SVG铺满，支持60/120/250日切换、十字光标+Tooltip
  */
 export default function KlinePanel({ code, name, onClose }) {
   const [klines, setKlines] = useState([]);
@@ -44,7 +44,7 @@ export default function KlinePanel({ code, name, onClose }) {
       .finally(() => setLoading(false));
   }, [code, days]);
 
-  // 拖拽事件处理
+  // 拖拽事件 — 从顶部边缘拖拽等比放大K线区域
   const handleDragStart = useCallback((e) => {
     dragging.current = true;
     startY.current = e.clientY || e.touches?.[0]?.clientY || 0;
@@ -57,6 +57,7 @@ export default function KlinePanel({ code, name, onClose }) {
     const handleDragMove = (e) => {
       if (!dragging.current) return;
       const dy = (e.clientY || e.touches?.[0]?.clientY || 0) - startY.current;
+      // 向上拖（dy负值）→ 增大面板；向下拖（dy正值）→ 缩小面板
       const newH = Math.max(120, Math.min(window.innerHeight * 0.8, startH.current - dy));
       setPanelHeight(newH);
     };
@@ -79,17 +80,29 @@ export default function KlinePanel({ code, name, onClose }) {
     };
   }, []);
 
-  // 鼠标移动事件处理
+  // 鼠标移动 — 基于 viewBox 坐标计算
   const handleMouseMove = useCallback((e) => {
     if (!svgRef.current || klines.length === 0) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const svgW = rect.width;
+    const svg = svgRef.current;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const svgPt = pt.matrixTransform(ctm.inverse());
+
+    const W = 800;
     const padL = 50, padR = 20;
-    const chartW = svgW - padL - padR;
-    if (chartW <= 0) return;
-    const idx = Math.round((x - padL) / chartW * (klines.length - 1));
-    setHoverIdx(Math.max(0, Math.min(klines.length - 1, idx)));
+    const chartW = W - padL - padR;
+    const n = klines.length;
+    const gap = chartW / n;
+
+    const idx = Math.round((svgPt.x - padL) / gap);
+    if (idx < 0 || idx >= n) {
+      setHoverIdx(null);
+      return;
+    }
+    setHoverIdx(idx);
   }, [klines]);
 
   const handleMouseLeave = useCallback(() => {
@@ -100,7 +113,6 @@ export default function KlinePanel({ code, name, onClose }) {
   const renderSVG = () => {
     if (klines.length === 0) return null;
 
-    // 使用固定viewBox协调比例，实际铺满靠CSS
     const W = 800;
     const H = 220;
     const padL = 50, padR = 20;
@@ -142,7 +154,6 @@ export default function KlinePanel({ code, name, onClose }) {
     const yPrice = (val) => kTop + kH * (1 - (val - minLow) / priceRange);
     const yVol = (val) => vBot - vH * (val / volRange);
 
-    // K线
     const elements = [];
     for (let i = 0; i < n; i++) {
       const k = klines[i];
@@ -160,7 +171,6 @@ export default function KlinePanel({ code, name, onClose }) {
       elements.push(<rect key={`vol-${i}`} x={x - candleW / 2} y={yVol(k.volume)} width={candleW} height={vBot - yVol(k.volume)} fill={color} opacity={0.4} />);
     }
 
-    // MA paths
     const makePath = (arr, cls) => {
       const pts = [];
       for (let i = 0; i < n; i++) {
@@ -173,7 +183,6 @@ export default function KlinePanel({ code, name, onClose }) {
     if (makePath(ma10, 'kline-ma10')) elements.push(makePath(ma10, 'kline-ma10'));
     if (makePath(ma20, 'kline-ma20')) elements.push(makePath(ma20, 'kline-ma20'));
 
-    // Y ticks
     for (let i = 0; i <= 5; i++) {
       const val = minLow + priceRange * (1 - i / 5);
       const y = kTop + kH * (i / 5);
@@ -181,7 +190,6 @@ export default function KlinePanel({ code, name, onClose }) {
       elements.push(<text key={`ygt-${i}`} x={padL - 8} y={y + 3} textAnchor="end" fill="#8b949e" fontSize={9}>{val.toFixed(2)}</text>);
     }
 
-    // X ticks
     const xCount = Math.min(8, n);
     const xStep = Math.max(1, Math.floor(n / xCount));
     for (let i = 0; i < n; i += xStep) {
@@ -191,7 +199,6 @@ export default function KlinePanel({ code, name, onClose }) {
       elements.push(<text key={`xgt-${i}`} x={x} y={vBot + 16} textAnchor="middle" fill="#8b949e" fontSize={9}>{d ? d.slice(5) : ''}</text>);
     }
 
-    // Crosshair
     if (hoverIdx !== null && klines[hoverIdx]) {
       const k = klines[hoverIdx];
       const hx = padL + hoverIdx * gap;
@@ -214,7 +221,6 @@ export default function KlinePanel({ code, name, onClose }) {
     );
   };
 
-  // hover tooltip
   const renderTooltip = () => {
     if (hoverIdx === null || !klines[hoverIdx]) return null;
     const k = klines[hoverIdx];
@@ -231,7 +237,6 @@ export default function KlinePanel({ code, name, onClose }) {
     );
   };
 
-  // MA图例
   const maLegend = () => {
     if (klines.length < 20) return null;
     const last = klines[klines.length - 1];
