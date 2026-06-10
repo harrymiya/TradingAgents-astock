@@ -77,33 +77,69 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
       // 股票节点
       for (const code of linkData['股票']) {
         const price = stockPrices[code] || {};
-        // 根据colorMetric决定颜色和半径
-        const metricVal = price[colorMetric] || 0;
-        let absVal = Math.abs(metricVal);
-        let colorMin, colorMax, radMax;
+        // 获取feat数据（从industryData._feat）
+        const feat = (industryData._feat && industryData._feat[code]) || {};
+        
+        // 根据colorMetric决定颜色值和范围
+        let metricVal, colorMin, colorMax, radMax;
         
         switch (colorMetric) {
           case 'chg':
-            colorMin = -10; colorMax = 10;
-            radMax = 16;
+            metricVal = price.chg || 0;
+            colorMin = -10; colorMax = 10; radMax = 16;
             break;
           case 'yearChg':
-            colorMin = -30; colorMax = 50;
-            absVal = Math.min(absVal, 100);
-            radMax = 18;
+            metricVal = price.yearChg || 0;
+            colorMin = -30; colorMax = 50; radMax = 18;
             break;
           case 'volume':
-            colorMin = 0; colorMax = 100;  // 万手
-            absVal = Math.min((price.volume || 0) / 10000, 200);
-            radMax = 20;
+            metricVal = Math.min((price.volume || 0) / 10000, 200);
+            colorMin = 0; colorMax = 100; radMax = 20;
             break;
           case 'amplitude':
-            colorMin = 0; colorMax = 10;
-            radMax = 16;
+            metricVal = price.amplitude || 0;
+            colorMin = 0; colorMax = 10; radMax = 16;
+            break;
+          case 'rsi':
+            // feat中的rsi: -2(超卖)~+2(超买)
+            metricVal = feat.rsi !== undefined ? feat.rsi : 0;
+            colorMin = -2; colorMax = 2; radMax = 14;
+            break;
+          case 's3_score':
+            metricVal = feat.s3_score !== undefined ? feat.s3_score : 50;
+            colorMin = 0; colorMax = 100; radMax = 18;
+            break;
+          case 'composite':
+            metricVal = feat.composite !== undefined ? feat.composite : 50;
+            colorMin = 0; colorMax = 100; radMax = 18;
+            break;
+          case 'pos_20d':
+            metricVal = feat.pos_20d !== undefined ? feat.pos_20d : 50;
+            colorMin = 0; colorMax = 100; radMax = 16;
+            break;
+          case 'ma20_pct':
+            metricVal = feat.ma20_pct !== undefined ? feat.ma20_pct : 0;
+            colorMin = -20; colorMax = 20; radMax = 16;
             break;
           default:
-            colorMin = -10; colorMax = 10;
-            radMax = 14;
+            metricVal = price.chg || 0;
+            colorMin = -10; colorMax = 10; radMax = 14;
+        }
+        
+        // 半径基于绝对值
+        const absVal = Math.abs(metricVal);
+        const r = Math.max(5, Math.min(radMax, 5 + (absVal / (Math.max(Math.abs(colorMax || 10), Math.abs(colorMin || 10), 10))) * (radMax - 5)));
+        
+        // 颜色：超买超卖特殊处理（越超卖越蓝=机会，越超买越红=风险）
+        let fillColor;
+        if (colorMetric === 'rsi') {
+          // rsi: -2超卖(蓝) → 0中性(黄) → +2超买(红)
+          fillColor = valueToColor(metricVal, -2, 2);
+        } else if (colorMetric === 'composite' || colorMetric === 's3_score') {
+          // 评分越高（越好）越红，越低越蓝
+          fillColor = valueToColor(metricVal, 0, 100);
+        } else {
+          fillColor = valueToColor(metricVal, colorMin, colorMax);
         }
 
         const stockNode = {
@@ -118,8 +154,10 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
           amplitude: price.amplitude || 0,
           linkName: linkName,
           linkColor: linkColorMap[linkName],
-          r: Math.max(5, Math.min(radMax, 5 + (absVal / (colorMax || 10)) * (radMax - 5))),
-          fillColor: valueToColor(metricVal, colorMin, colorMax),
+          r: r,
+          fillColor: fillColor,
+          // 携带feat数据给详情栏
+          feat: feat,
         };
         nodes.push(stockNode);
         nodeMap[code] = nodeIdx;

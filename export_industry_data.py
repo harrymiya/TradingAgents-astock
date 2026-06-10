@@ -115,25 +115,114 @@ for ch_id, ch_name, ch_desc, stock_cnt in chains:
 
 db.close()
 
+# 收集feat数据（每只股票最新一行）
+print("\n收集feat数据...")
+feat_data = {}
+# 重新打开DB连接读feat
+db2_read = sqlite3.connect(DB_PATH)
+try:
+    # 获取所有涉及股票的最新feat记录
+    all_codes_list = list(set(c for v in result.values() 
+                                for s in v['环节'].values() 
+                                for c in s['股票']))
+    if all_codes_list:
+        # 对每只股票取最新一条feat
+        for code in all_codes_list:
+            row = db2_read.execute('''
+                SELECT pos_20d, ma20_pct, vr_5, ret3, amp
+                FROM feat WHERE code=? ORDER BY date DESC LIMIT 1
+            ''', (code,)).fetchone()
+            if row:
+                pos = row[0] or 50
+                ma20_pct = row[1] or 0
+                vr5 = row[2] or 0
+                ret3 = row[3] or 0
+                amp = row[4] or 0
+                
+                # 计算超买超卖指标 (基于pos_20d)
+                # pos_20d < 20 = 超卖, > 80 = 超买
+                if pos < 20:
+                    rsi_signal = -2  # 超卖
+                    rsi_label = '超卖'
+                elif pos < 35:
+                    rsi_signal = -1
+                    rsi_label = '偏卖'
+                elif pos > 80:
+                    rsi_signal = 2  # 超买
+                    rsi_label = '超买'
+                elif pos > 65:
+                    rsi_signal = 1
+                    rsi_label = '偏买'
+                else:
+                    rsi_signal = 0
+                    rsi_label = '中性'
+                
+                # S3综合评分 (基于S3策略逻辑)
+                s3_score = 0
+                s3_label = ''
+                if pos < 20 and -15 < ma20_pct < -5:
+                    s3_score = 85
+                    s3_label = 'S3超跌反弹'
+                elif pos < 30 and ma20_pct < -5:
+                    s3_score = 70
+                    s3_label = '接近超跌'
+                elif pos > 80:
+                    s3_score = 20
+                    s3_label = '高位风险'
+                else:
+                    s3_score = 50
+                    s3_label = '正常'
+                
+                # 综合评分
+                composite = 50
+                if rsi_signal == -2: composite += 20  # 超卖是机会
+                elif rsi_signal == -1: composite += 10
+                elif rsi_signal == 2: composite -= 15  # 超买是风险
+                elif rsi_signal == 1: composite -= 5
+                if ma20_pct < -10: composite += 10
+                elif ma20_pct > 10: composite -= 10
+                composite = max(0, min(100, composite))
+                
+                feat_data[code] = {
+                    'pos_20d': pos,
+                    'ma20_pct': round(ma20_pct, 2),
+                    'vr_5': round(vr5, 2),
+                    'amp': round(amp, 2),
+                    'rsi': rsi_signal,
+                    'rsi_label': rsi_label,
+                    's3_score': s3_score,
+                    's3_label': s3_label,
+                    'composite': composite,
+                }
+    print(f"  获取了 {len(feat_data)} 只feat数据")
+except Exception as e:
+    print(f"  feat获取失败: {e}")
+
+# 在result中加入_feat字段
+result['_feat'] = feat_data
+db2_read.close()
+
 # 写入JSON
 with open(OUT_PATH, 'w', encoding='utf-8') as f:
     json.dump(result, f, ensure_ascii=False, indent=2)
 
-# 统计
-total_chains = len(result)
-total_links = sum(len(v['环节']) for v in result.values())
-total_stocks = sum(len(s['股票']) for v in result.values() for s in v['环节'].values())
-total_unique_codes = len(set(c for v in result.values() for s in v['环节'].values() for c in s['股票']))
+# 统计（排除_feat元数据）
+chain_values = {k: v for k, v in result.items() if k != '_feat'}
+total_chains = len(chain_values)
+total_links = sum(len(v['环节']) for v in chain_values.values())
+total_stocks = sum(len(s['股票']) for v in chain_values.values() for s in v['环节'].values())
+total_unique_codes = len(set(c for v in chain_values.values() for s in v['环节'].values() for c in s['股票']))
 
 print(f"✅ 导出完成!")
 print(f"   产业链: {total_chains} 条")
 print(f"   环节: {total_links} 个")
 print(f"   股票关联: {total_stocks} 条")
 print(f"   唯一股票: {total_unique_codes} 只")
+print(f"   feat数据: {len(feat_data)} 只")
 print(f"   大小: {os.path.getsize(OUT_PATH)/1024/1024:.1f} MB")
 
 print(f"\n=== 产业链列表 ===")
-for name, data in result.items():
+for name, data in sorted(chain_values.items()):
     link_cnt = len(data['环节'])
     stock_cnt = sum(len(s['股票']) for s in data['环节'].values())
     has_deps = any(s['上游'] or s['下游'] for s in data['环节'].values())
