@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './DetailPanel.css';
-import './ReportModal.css';  // 新建的弹窗样式
+import './ReportModal.css';
 import RevealPanel from './RevealPanel';
 
 // 涨用红色，跌用绿色（A股习惯）
@@ -19,102 +19,198 @@ export default function DetailPanel({
   stockPrices,
   stockIndustry,
   industryName,
+  industryData,
   onClose,
   onSelectStock,
   onBack,
   history,
   screeningInfo,
 }) {
-  if (!selectedNode) return null;
+  // 没有选中任何节点时，显示产业链概览
+  if (!selectedNode) {
+    return (
+      <div className="detail-panel">
+        <div className="detail-header">
+          <h3>🏭 产业链概览</h3>
+        </div>
+        <div className="detail-body">
+          {industryName && industryData?.[industryName] ? (
+            <IndustryOverview
+              industryName={industryName}
+              industryData={industryData[industryName]}
+            />
+          ) : (
+            <div className="empty-hint">请在左侧选择一个产业链</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const node = selectedNode;
   const isStock = node.type === 'stock';
+  const isLink = node.type === 'link';
   const code = node.code;
   const price = stockPrices[code] || {};
   const industry = stockIndustry[code] || {};
 
-  const detailCode = history?.length > 1 ? history[history.length - 1].code : null;
+  // 环节详情中点击公司后，实际显示的公司来自 history 最顶层
+  const detailCode = history?.length > 0 ? history[history.length - 1].code : null;
   const detailPrice = detailCode ? stockPrices[detailCode] || {} : null;
-  const detailIndustry = detailCode ? stockIndustry[detailCode] || {} : null;
+
+  // 公司详情 — 直接选中的stock或从history点进来的
+  const showCompany = isStock || detailCode;
+
+  // 当前显示的公司信息
+  const displayCode = showCompany ? (detailCode || code) : null;
+  const displayPrice = detailCode ? detailPrice : price;
+  const displayHistory = showCompany && history?.length > 0 ? history : null;
 
   return (
     <div className="detail-panel">
       <RevealPanel info={screeningInfo} onClose={() => {}} />
       <div className="detail-header">
-        <h3>{isStock ? '📈 公司详情' : '🏗️ 环节详情'}</h3>
+        <h3>{isStock ? '📈 公司详情' : isLink ? '🏗️ 环节详情' : '🏭 产业链'}</h3>
         <button className="close-btn" onClick={onClose}>✕</button>
       </div>
 
-      {!isStock && (
+      {/* 环节详情 */}
+      {isLink && !detailCode && (
         <div className="detail-body">
-          <div className="detail-section">
-            <h4 className="link-name">{node.name}</h4>
-            <p className="link-desc">{node.desc || '无描述'}</p>
-            <div className="link-stats">
-              <span className="stat">壁垒等级: {'⭐'.repeat(node.barrier || 3)}</span>
-              <span className="stat">国产化率: {node.localRate || 50}%</span>
-              <span className="stat">公司数: {node.stockCount}家</span>
-            </div>
-          </div>
-          {node.upstream?.length > 0 && (
-            <div className="detail-section">
-              <h4 className="section-title flow-up">⬆️ 上游供应</h4>
-              <div className="link-tags">
-                {node.upstream.map(u => (<span key={u} className="flow-tag upstream">{u}</span>))}
-              </div>
-            </div>
-          )}
-          {node.downstream?.length > 0 && (
-            <div className="detail-section">
-              <h4 className="section-title flow-down">⬇️ 下游应用</h4>
-              <div className="link-tags">
-                {node.downstream.map(d => (<span key={d} className="flow-tag downstream">{d}</span>))}
-              </div>
-            </div>
-          )}
-          <div className="detail-section">
-            <h4 className="section-title">🏢 所属公司 ({node.stockCount}家)</h4>
-            <div className="stock-list">
-              {(node.stocks || []).map(s => {
-                const p = stockPrices[s.code] || {};
-                const ind = stockIndustry[s.code] || {};
-                const chg = p.chg || 0;
-                return (
-                  <div key={s.code} className="stock-item clickable"
-                    onClick={() => onSelectStock({ code: s.code, name: p.name || s.code, linkName: node.name })}>
-                    <div className="stock-main">
-                      <span className="stock-name">{p.name || s.code}</span>
-                      <span className="stock-code">{s.code}</span>
-                      <span className={`stock-chg ${chg >= 0 ? 'up' : 'down'}`}>{chg > 0 ? '+' : ''}{chg.toFixed(2)}%</span>
-                    </div>
-                    <div className="stock-sub">
-                      <span className="stock-ind">{ind.l1 || ind.l2 || '未分类'}</span>
-                      <span className="stock-link">{node.name}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <LinkDetail
+            node={node}
+            stockPrices={stockPrices}
+            stockIndustry={stockIndustry}
+            onSelectStock={onSelectStock}
+          />
         </div>
       )}
 
-      {isStock && !detailCode && (
-        <CompanyDetail code={code} price={price} industry={industry}
-          linkName={node.linkName} industryName={industryName}
-          stockPrices={stockPrices} stockIndustry={stockIndustry} onBack={onBack} />
-      )}
-
-      {detailCode && (
-        <CompanyDetail code={detailCode} price={detailPrice} industry={detailIndustry}
-          linkName={history[history.length - 1].linkName} industryName={industryName}
-          stockPrices={stockPrices} stockIndustry={stockIndustry} onBack={onBack} />
+      {/* 公司详情 */}
+      {displayCode && (
+        <div className="detail-body">
+          <CompanyDetail
+            code={displayCode}
+            price={displayPrice}
+            industry={industry}
+            linkName={node.linkName || (history?.[history.length - 1]?.linkName)}
+            industryName={industryName}
+            stockPrices={stockPrices}
+            stockIndustry={stockIndustry}
+            onBack={detailCode ? onBack : null}
+            selectedNode={selectedNode}
+          />
+        </div>
       )}
     </div>
   );
 }
 
-function CompanyDetail({ code, price, industry, linkName, industryName, stockPrices, stockIndustry, onBack }) {
+/* ===== 产业链概览 ===== */
+function IndustryOverview({ industryName, industryData }) {
+  const links = industryData['环节'] || {};
+  const desc = industryData['描述'] || '';
+  const linkNames = Object.keys(links);
+  const totalStocks = new Set();
+  for (const ln of Object.values(links)) {
+    for (const c of (ln['股票'] || [])) totalStocks.add(c);
+  }
+
+  return (
+    <>
+      <div className="detail-section">
+        <h4 className="section-title">📋 产业链概况</h4>
+        <div className="ind-overview-header">
+          <span className="ind-name-large">{industryName}</span>
+          <span className="ind-stats">{linkNames.length}个环节 · {totalStocks.size}家公司</span>
+        </div>
+        <p className="ind-desc">{desc}</p>
+      </div>
+      <div className="detail-section">
+        <h4 className="section-title">🔗 各环节一览</h4>
+        <div className="link-summary-list">
+          {linkNames.map(name => {
+            const ln = links[name];
+            return (
+              <div key={name} className="link-summary-item">
+                <div className="ls-item-header">
+                  <span className="ls-name">{name}</span>
+                  <span className="ls-count">{ln['股票'].length}家</span>
+                  <span className="ls-barrier">{'⭐'.repeat(ln['壁垒'] || 3)}</span>
+                </div>
+                <div className="ls-desc">{ln['描述'] || ''}</div>
+                <div className="ls-tags">
+                  {ln['上游']?.length > 0 && <span className="ls-tag upstream-tag">⬆{ln['上游'].join(', ')}</span>}
+                  {ln['下游']?.length > 0 && <span className="ls-tag downstream-tag">⬇{ln['下游'].join(', ')}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ===== 环节详情 ===== */
+function LinkDetail({ node, stockPrices, stockIndustry, onSelectStock }) {
+  return (
+    <>
+      <div className="detail-section">
+        <h4 className="link-name">{node.name}</h4>
+        <p className="link-desc">{node.desc || '无描述'}</p>
+        <div className="link-stats">
+          <span className="stat">壁垒等级: {'⭐'.repeat(node.barrier || 3)}</span>
+          <span className="stat">国产化率: {node.localRate || 50}%</span>
+          <span className="stat">公司数: {node.stockCount}家</span>
+        </div>
+      </div>
+      {node.upstream?.length > 0 && (
+        <div className="detail-section">
+          <h4 className="section-title flow-up">⬆️ 上游供应</h4>
+          <div className="link-tags">
+            {node.upstream.map(u => (<span key={u} className="flow-tag upstream">{u}</span>))}
+          </div>
+        </div>
+      )}
+      {node.downstream?.length > 0 && (
+        <div className="detail-section">
+          <h4 className="section-title flow-down">⬇️ 下游应用</h4>
+          <div className="link-tags">
+            {node.downstream.map(d => (<span key={d} className="flow-tag downstream">{d}</span>))}
+          </div>
+        </div>
+      )}
+      <div className="detail-section">
+        <h4 className="section-title">🏢 所属公司 ({node.stockCount}家)</h4>
+        <div className="stock-list">
+          {(node.stocks || []).map(s => {
+            const p = stockPrices[s.code] || {};
+            const ind = stockIndustry[s.code] || {};
+            const chg = p.chg || 0;
+            return (
+              <div key={s.code} className="stock-item clickable"
+                onClick={() => onSelectStock({ code: s.code, name: p.name || s.code, linkName: node.name })}>
+                <div className="stock-main">
+                  <span className="stock-name">{p.name || s.code}</span>
+                  <span className="stock-code">{s.code}</span>
+                  <span className={`stock-chg ${chg >= 0 ? 'up' : 'down'}`}>{chg > 0 ? '+' : ''}{chg.toFixed(2)}%</span>
+                </div>
+                <div className="stock-sub">
+                  <span className="stock-ind">{ind.l1 || ind.l2 || '未分类'}</span>
+                  <span className="stock-link">{node.name}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ===== 公司详情 ===== */
+function CompanyDetail({ code, price, industry, linkName, industryName, stockPrices, stockIndustry, onBack, selectedNode }) {
   const chg = price.chg || 0;
   const chgColor = getChgColor(chg);
   const pe = price.pe || 0;
@@ -122,7 +218,6 @@ function CompanyDetail({ code, price, industry, linkName, industryName, stockPri
   const yearChg = price.yearChg || 0;
   const volume = price.volume || 0;
 
-  // AI分析状态
   const [analyzing, setAnalyzing] = useState(false);
   const [report, setReport] = useState(null);
   const [showReport, setShowReport] = useState(false);
@@ -151,7 +246,7 @@ function CompanyDetail({ code, price, industry, linkName, industryName, stockPri
   };
 
   return (
-    <div className="detail-body">
+    <>
       {onBack && (<button className="back-btn" onClick={onBack}>← 返回</button>)}
 
       <div className="detail-section company-header">
@@ -190,7 +285,6 @@ function CompanyDetail({ code, price, industry, linkName, industryName, stockPri
         </div>
       </div>
 
-      {/* AI分析按钮 */}
       <div className="detail-section">
         <button className="analyze-btn" onClick={handleAnalyze} disabled={analyzing}>
           {analyzing ? '⏳ 分析中...' : report ? '📋 查看报告' : '🤖 AI深度分析'}
@@ -211,35 +305,14 @@ function CompanyDetail({ code, price, industry, linkName, industryName, stockPri
         </div>
       )}
 
-      {/* 报告弹窗 */}
       {showReport && report && (
         <ReportModal report={report} onClose={() => setShowReport(false)} />
       )}
-
-      <div className="detail-section">
-        <h4 className="section-title">🏢 同环节公司</h4>
-        <div className="stock-list">
-          {(price._sameLinkStocks || []).map(s => {
-            if (s.code === code) return null;
-            const p = stockPrices[s.code] || {};
-            const sc = p.chg || 0;
-            return (
-              <div key={s.code} className="stock-item" style={{ opacity: 0.7 }}>
-                <div className="stock-main">
-                  <span className="stock-name">{p.name || s.code}</span>
-                  <span className="stock-code">{s.code}</span>
-                  <span className={`stock-chg ${sc >= 0 ? 'up' : 'down'}`}>{sc > 0 ? '+' : ''}{sc.toFixed(2)}%</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
-/* ====== 报告弹窗组件 ====== */
+/* ====== 报告弹窗 ====== */
 function ReportModal({ report, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -252,8 +325,6 @@ function ReportModal({ report, onClose }) {
           </div>
         </div>
         <div className="modal-body">
-
-          {/* 分析师观点 */}
           {report.market_report && (
             <div className="report-block">
               <h5>📈 市场分析师</h5><p>{report.market_report.substring(0, 800)}</p>
@@ -274,8 +345,6 @@ function ReportModal({ report, onClose }) {
               <h5>💰 游资追踪</h5><p>{report.hot_money_report.substring(0, 800)}</p>
             </div>
           )}
-
-          {/* Bull/Bear辩论 */}
           {(report.bull_history || report.bear_history) && (
             <div className="report-block debate-block">
               <h5>⚔️ Bull/Bear 辩论</h5>
@@ -293,16 +362,12 @@ function ReportModal({ report, onClose }) {
               )}
             </div>
           )}
-
-          {/* 裁判判决 */}
           {report.judge_decision && (
             <div className="report-block judge-block">
               <h5>⚖️ 裁判判决</h5>
               <p>{report.judge_decision.substring(0, 1200)}</p>
             </div>
           )}
-
-          {/* 风险评估 */}
           {(report.risk_conservative || report.risk_aggressive || report.risk_neutral) && (
             <div className="report-block risk-block">
               <h5>🛡️ 风险评估</h5>
@@ -326,16 +391,12 @@ function ReportModal({ report, onClose }) {
               )}
             </div>
           )}
-
-          {/* 风险裁判 */}
           {report.risk_judge && (
             <div className="report-block judge-block">
               <h5>⚖️ 风险裁判</h5>
               <p>{report.risk_judge.substring(0, 800)}</p>
             </div>
           )}
-
-          {/* 交易计划 */}
           {report.trader_plan && (
             <div className="report-block trader-block">
               <h5>📝 交易计划</h5>

@@ -262,7 +262,7 @@ export default function App() {
         stockPrices={stockPrices}
         stockIndustry={{}}
         industryName={currentIndustry}
-        onClose={() => { setSelectedNode(null); setDetailHistory([]); setScreeningInfo(null); setScreeningCode(null); setAvailableChains([]); setKlineStock(null); }}
+        industryData={industryData}
         onSelectStock={handleSelectStock}
         onBack={handleBack}
         history={detailHistory}
