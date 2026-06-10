@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import './ScreeningPanel.css';
 
 const API_URL = '/api/screening';
+const QT_API = 'https://qt.gtimg.cn/q=';
 const STRATEGY_META = {
   pipeline: { label: '流水线选股', icon: '📋', desc: 'S3超跌反弹 + 三买v2 并集' },
   s3: { label: 'S3选股', icon: '⚡', desc: '超跌反弹(位<20,涨3-7%,vr1.2-2.5,MA20<-8%)' },
@@ -9,13 +10,43 @@ const STRATEGY_META = {
   sanyin: { label: '三阴选股', icon: '🌧️', desc: '涨停启动→3日缩量回调→今日企稳' },
 };
 
+async function fetchRealTimePrices(codes) {
+  if (!codes || codes.length === 0) return {};
+  // 每批30个，从腾讯API拉实时数据
+  const results = {};
+  const BATCH = 30;
+  for (let i = 0; i < codes.length; i += BATCH) {
+    const batch = codes.slice(i, i + BATCH);
+    const qtCodes = batch.map(c => (c.startsWith('6') ? 'sh' : 'sz') + c);
+    try {
+      const resp = await fetch(`${QT_API}${qtCodes.join(',')}&_=${Date.now()}`);
+      const buf = await resp.arrayBuffer();
+      const decoder = new TextDecoder('gb18030');
+      const text = decoder.decode(buf);
+      for (const line of text.split(';')) {
+        if (!line.trim() || !line.includes('~')) continue;
+        const parts = line.split('~');
+        const codeMatch = (parts[0] || '').match(/(\d{6})/);
+        const code = codeMatch ? codeMatch[1] : null;
+        if (!code) continue;
+        const price = parseFloat(parts[3]) || 0;
+        const chg = parseFloat(parts[32]) || 0;
+        results[code] = { price, chg };
+      }
+    } catch (e) {
+      console.warn('QT batch error:', e);
+    }
+  }
+  return results;
+}
+
 export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
   const [activeStrategy, setActiveStrategy] = useState(null);
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
 
-  const runStrategy = async (strategy) => {
+  const runStrategy = useCallback(async (strategy) => {
     setActiveStrategy(strategy);
     if (results[strategy]) return;
 
@@ -32,17 +63,26 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
       if (data.error) {
         setError(prev => ({ ...prev, [strategy]: data.error }));
       } else {
-        setResults(prev => ({ ...prev, [strategy]: data }));
+        // 拉取实时行情替换chg和close
+        const codes = (data.results || []).map(r => r.code);
+        const realTime = await fetchRealTimePrices(codes);
+        const merged = (data.results || []).map(r => {
+          const rt = realTime[r.code];
+          if (rt) {
+            return { ...r, chg: rt.chg, close: rt.price };
+          }
+          return r;
+        });
+        setResults(prev => ({ ...prev, [strategy]: { ...data, results: merged } }));
       }
     } catch (e) {
       setError(prev => ({ ...prev, [strategy]: e.message }));
     } finally {
       setLoading(prev => ({ ...prev, [strategy]: false }));
     }
-  };
+  }, [results]);
 
   const handleClickStock = (item) => {
-    // 不切换tab，只通知父组件跳产业链+选中
     if (onSelectScreening) {
       onSelectScreening(item);
     }
@@ -101,23 +141,25 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
               >
                 <div className="screening-item-header">
                   <span className="screening-code">{item.code}</span>
-                  <span className="screening-name" title={item.name}>{item.name}</span>
+                  <span className="screening-name">{item.name}</span>
                   <span className={`screening-chg ${chg >= 0 ? 'up' : 'down'}`}>
-                    {chg > 0 ? '+' : ''}{chg.toFixed(2)}%
+                    {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                   </span>
-                  <span className="screening-price">{parseFloat(item.close || 0).toFixed(2)}</span>
+                  <span className="screening-price">{item.close?.toFixed(2)}</span>
                 </div>
-                <div className="screening-item-detail">
-                  <span className="screening-strategy-tag">{item.strategy}</span>
-                  <span className="screening-detail-text">{item.detail}</span>
-                </div>
+                {item.strategy && (
+                  <div className="screening-item-detail">
+                    <span className="screening-strategy-tag">{item.strategy}</span>
+                    <span className="screening-detail-text">{item.detail || ''}</span>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      {activeStrategy && !loading[activeStrategy] && currentResults.length === 0 && !error[activeStrategy] && (
+      {activeStrategy && !loading[activeStrategy] && currentData && currentResults.length === 0 && (
         <div className="screening-empty">暂无符合条件的股票</div>
       )}
     </div>
