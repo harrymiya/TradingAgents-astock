@@ -166,7 +166,7 @@ export default function App() {
       setCurrentIndustry(chains[0]);
     }
     // 设置为选中节点
-    setSelectedNode({ code, name: item.name });
+    setSelectedNode({ code, name: item.name, type: 'stock', id: code });
     setDetailHistory([]);
     // 保留选股附加信息，传递给详情面板
     setScreeningInfo({
