@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './DetailPanel.css';
 import './ReportModal.css';  // 新建的弹窗样式
+import RevealPanel from './RevealPanel';
 
 // 涨用红色，跌用绿色（A股习惯）
 function getChgColor(chg) {
@@ -22,6 +23,7 @@ export default function DetailPanel({
   onSelectStock,
   onBack,
   history,
+  screeningInfo,
 }) {
   if (!selectedNode) return null;
 
@@ -37,6 +39,7 @@ export default function DetailPanel({
 
   return (
     <div className="detail-panel">
+      <RevealPanel info={screeningInfo} onClose={() => {}} />
       <div className="detail-header">
         <h3>{isStock ? '📈 公司详情' : '🏗️ 环节详情'}</h3>
         <button className="close-btn" onClick={onClose}>✕</button>

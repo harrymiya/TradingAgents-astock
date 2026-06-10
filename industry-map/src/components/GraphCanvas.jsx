@@ -184,7 +184,10 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
     const rect = svgRefCache.getBoundingClientRect();
     onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top });
   });
-  nodeG.on('mouseleave', () => {});
+  nodeG.on('mouseleave', (event, d) => {
+    // 鼠标移出节点，清tooltip
+    if (onTooltip) onTooltip(null);
+  });
   nodeG.on('click', function(event, d) {
     event.stopPropagation();
     if (onNodeClick) onNodeClick(d);
@@ -620,7 +623,10 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
     const rect = svgRefCache.getBoundingClientRect();
     onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top });
   });
-  nodeG.on('mouseleave', () => {});
+  nodeG.on('mouseleave', (event, d) => {
+    // 鼠标移出节点，清tooltip
+    if (onTooltip) onTooltip(null);
+  });
   nodeG.on('click', function(event, d) {
     event.stopPropagation();
     if (onNodeClick) onNodeClick(d);

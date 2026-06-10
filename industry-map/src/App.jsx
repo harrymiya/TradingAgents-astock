@@ -4,6 +4,7 @@ import GraphCanvas from './components/GraphCanvas';
 import Controls from './components/Controls';
 import Tooltip from './components/Tooltip';
 import DetailPanel from './components/DetailPanel';
+import RevealPanel from './components/RevealPanel';
 import industryData from './data/industry_data.json';
 import priceData from './data/price_data.json';
 import featData from './data/feat_data.json';
@@ -23,6 +24,23 @@ function getInitParams() {
   };
 }
 
+// 代码 → 产业链名映射（提前构建一次）
+function buildCodeToIndustryMap(data) {
+  const map = {};
+  for (const [indName, indData] of Object.entries(data)) {
+    if (indName.startsWith('_') || !indData['环节']) continue;
+    for (const [linkName, linkData] of Object.entries(indData['环节'])) {
+      for (const c of (linkData['股票'] || [])) {
+        if (/^\d{6}$/.test(c)) {
+          if (!map[c]) map[c] = [];
+          if (!map[c].includes(indName)) map[c].push(indName);
+        }
+      }
+    }
+  }
+  return map;
+}
+
 // 收集指定产业链内所有股票代码
 function getIndustryCodes(data, industryName) {
   const indData = data[industryName];
@@ -35,6 +53,8 @@ function getIndustryCodes(data, industryName) {
   }
   return codes;
 }
+
+const codeToIndustry = buildCodeToIndustryMap(industryData);
 
 export default function App() {
   const init = getInitParams();
@@ -49,11 +69,13 @@ export default function App() {
   // 详情栏状态
   const [selectedNode, setSelectedNode] = useState(null);
   const [detailHistory, setDetailHistory] = useState([]);
+  // 选股跳转附加信息
+  const [screeningInfo, setScreeningInfo] = useState(null);
 
   const graphRef = useRef(null);
   const autoRefreshRef = useRef(null);
 
-  // 获取当前产业链的行情（只拉图中显示的公司）
+  // 获取当前产业链的行情
   const fetchPrices = useCallback(async () => {
     const codes = getIndustryCodes(industryData, currentIndustry);
     if (codes.length === 0) return;
@@ -108,7 +130,7 @@ export default function App() {
     fetchPrices();
   }, [currentIndustry, fetchPrices]);
 
-  // 自动刷新：每30秒轮询当前产业链的实时数据
+  // 自动刷新
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPrices();
@@ -117,13 +139,15 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchPrices]);
 
-  // 点击节点处理
+  // 点击节点
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
     setDetailHistory([]);
+    setScreeningInfo(null);
+    setTooltip(null);
   }, []);
 
-  // 从环节详情点击公司（进入二级）
+  // 从环节详情点击公司
   const handleSelectStock = useCallback(({ code, name, linkName }) => {
     setDetailHistory(prev => [...prev, { code, name, linkName }]);
   }, []);
@@ -133,12 +157,35 @@ export default function App() {
     setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
+  // 选股结果点击：跳转到产业链+选中该股
+  const handleSelectScreening = useCallback((item) => {
+    const code = item.code;
+    // 查找该股票所在的产业链
+    const chains = codeToIndustry[code];
+    if (chains && chains.length > 0) {
+      setCurrentIndustry(chains[0]);
+    }
+    // 设置为选中节点
+    setSelectedNode({ code, name: item.name });
+    setDetailHistory([]);
+    // 保留选股附加信息，传递给详情面板
+    setScreeningInfo({
+      code: item.code,
+      name: item.name,
+      strategy: item.strategy,
+      detail: item.detail,
+      chg: item.chg,
+      close: item.close,
+    });
+  }, []);
+
   return (
     <div className="app">
       <Sidebar
         industries={industryData}
         current={currentIndustry}
         onSelect={setCurrentIndustry}
+        onSelectScreening={handleSelectScreening}
       />
       <div className="main">
         <Controls
@@ -175,10 +222,11 @@ export default function App() {
         stockPrices={stockPrices}
         stockIndustry={{}}
         industryName={currentIndustry}
-        onClose={() => { setSelectedNode(null); setDetailHistory([]); }}
+        onClose={() => { setSelectedNode(null); setDetailHistory([]); setScreeningInfo(null); }}
         onSelectStock={handleSelectStock}
         onBack={handleBack}
         history={detailHistory}
+        screeningInfo={screeningInfo}
       />
     </div>
   );

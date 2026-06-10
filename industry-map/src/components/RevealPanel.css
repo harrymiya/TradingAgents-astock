@@ -1,0 +1,88 @@
+.reveal-panel {
+  background: linear-gradient(135deg, #1a253b 0%, #162033 100%);
+  border: 1px solid #58a6ff;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.reveal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #1a253b;
+  border-bottom: 1px solid #21262d;
+}
+
+.reveal-title {
+  font-size: 12px;
+  color: #58a6ff;
+  font-weight: 600;
+}
+
+.reveal-close {
+  background: none;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.reveal-close:hover {
+  color: #c9d1d9;
+}
+
+.reveal-body {
+  padding: 6px 10px;
+}
+
+.reveal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.reveal-label {
+  font-size: 11px;
+  color: #6e7681;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.reveal-value {
+  font-size: 12px;
+  color: #c9d1d9;
+}
+
+.reveal-tag {
+  font-size: 10px;
+  color: #d29922;
+  background: #2d2a12;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.chg-up {
+  color: #ff6b6b;
+}
+
+.chg-down {
+  color: #51cf66;
+}
+
+.reveal-detail {
+  margin-top: 4px;
+  padding: 4px 0;
+  border-top: 1px dashed #21262d;
+}
+
+.reveal-detail-text {
+  font-size: 11px;
+  color: #8b949e;
+  margin: 2px 0 0 0;
+  line-height: 1.4;
+}
