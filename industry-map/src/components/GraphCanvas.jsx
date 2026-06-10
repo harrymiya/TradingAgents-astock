@@ -2,43 +2,24 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import './GraphCanvas.css';
 
-// 颜色映射
-function getColor(value, metric) {
+// 蓝→红渐变（低→高）
+function valueToColor(value, minVal = -10, maxVal = 10) {
   if (value === null || value === undefined) return '#8b949e';
-  switch (metric) {
-    case 'chg':
-    case 'yearChg':
-    case 'monthChg':
-      if (value > 5) return '#00c853';
-      if (value > 3) return '#2ea043';
-      if (value > 1) return '#58a6ff';
-      if (value > 0) return '#8b949e';
-      if (value > -1) return '#8b949e';
-      if (value > -3) return '#f85149';
-      if (value > -5) return '#d73a49';
-      return '#7d1a2c';
-    case 'volume':
-      const v = value / 10000;
-      if (v > 100) return '#00c853';
-      if (v > 30) return '#2ea043';
-      if (v > 10) return '#58a6ff';
-      if (v > 3) return '#8b949e';
-      return '#6e7681';
-    case 'amplitude':
-      if (value > 10) return '#00c853';
-      if (value > 5) return '#2ea043';
-      if (value > 3) return '#58a6ff';
-      if (value > 1) return '#8b949e';
-      return '#6e7681';
-    default:
-      return '#8b949e';
+  const t = Math.max(0, Math.min(1, (value - minVal) / (maxVal - minVal)));
+  // 渐变: 蓝(0,0.6,1) → 青(0.3,0.9,1) → 黄(1,0.9,0.3) → 红(1,0.2,0.2)
+  if (t < 0.5) {
+    const s = t * 2;
+    return d3.interpolateRgb('#1a6bff', '#ffb320')(s);
+  } else {
+    const s = (t - 0.5) * 2;
+    return d3.interpolateRgb('#ffb320', '#ff2d2d')(s);
   }
 }
 
 // 环节节点颜色（固定方案）
 const LINK_COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#db2777', '#4f46e5'];
 
-export default function GraphCanvas({ industry, industryData, stockPrices, colorMetric, labelMode, onTooltip, onNodeClick, selectedNode }) {
+export default function GraphCanvas({ industry, industryData, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -96,6 +77,35 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
       // 股票节点
       for (const code of linkData['股票']) {
         const price = stockPrices[code] || {};
+        // 根据colorMetric决定颜色和半径
+        const metricVal = price[colorMetric] || 0;
+        let absVal = Math.abs(metricVal);
+        let colorMin, colorMax, radMax;
+        
+        switch (colorMetric) {
+          case 'chg':
+            colorMin = -10; colorMax = 10;
+            radMax = 16;
+            break;
+          case 'yearChg':
+            colorMin = -30; colorMax = 50;
+            absVal = Math.min(absVal, 100);
+            radMax = 18;
+            break;
+          case 'volume':
+            colorMin = 0; colorMax = 100;  // 万手
+            absVal = Math.min((price.volume || 0) / 10000, 200);
+            radMax = 20;
+            break;
+          case 'amplitude':
+            colorMin = 0; colorMax = 10;
+            radMax = 16;
+            break;
+          default:
+            colorMin = -10; colorMax = 10;
+            radMax = 14;
+        }
+
         const stockNode = {
           id: code,
           name: price.name || code,
@@ -104,12 +114,12 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
           price: price.price || 0,
           chg: price.chg || 0,
           yearChg: price.yearChg || 0,
-          monthChg: price.monthChg || price.chg || 0,
           volume: price.volume || 0,
           amplitude: price.amplitude || 0,
           linkName: linkName,
           linkColor: linkColorMap[linkName],
-          r: 8,
+          r: Math.max(5, Math.min(radMax, 5 + (absVal / (colorMax || 10)) * (radMax - 5))),
+          fillColor: valueToColor(metricVal, colorMin, colorMax),
         };
         nodes.push(stockNode);
         nodeMap[code] = nodeIdx;
@@ -201,34 +211,32 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
     nodeG.filter(d => d.type === 'stock')
       .append('circle')
       .attr('r', d => d.r)
-      .attr('fill', d => getColor(d.chg, 'chg'))
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 1);
+      .attr('fill', d => d.fillColor || '#8b949e')
+      .attr('fill-opacity', 0.85)
+      .attr('stroke', d => d.fillColor || '#8b949e')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.5);
 
-    // 环节标签
-    if (labelMode === 'link' || labelMode === 'both') {
-      nodeG.filter(d => d.type === 'link')
-        .append('text')
-        .attr('dy', 4)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#e6edf3')
-        .attr('font-size', 12)
-        .attr('font-weight', 600)
-        .attr('pointer-events', 'none')
-        .text(d => d.name.length > 5 ? d.name.slice(0, 5) + '..' : d.name);
-    }
+    // 环节标签 — 始终显示环节名
+    nodeG.filter(d => d.type === 'link')
+      .append('text')
+      .attr('dy', 4)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#e6edf3')
+      .attr('font-size', 12)
+      .attr('font-weight', 600)
+      .attr('pointer-events', 'none')
+      .text(d => d.name.length > 5 ? d.name.slice(0, 5) + '..' : d.name);
 
-    // 股票标签
-    if (labelMode === 'stock' || labelMode === 'both') {
-      nodeG.filter(d => d.type === 'stock')
-        .append('text')
-        .attr('dx', d => d.r + 6)
-        .attr('dy', 4)
-        .attr('fill', '#c9d1d9')
-        .attr('font-size', 10)
-        .attr('pointer-events', 'none')
-        .text(d => d.name);
-    }
+    // 股票节点标签 — 始终显示公司名
+    nodeG.filter(d => d.type === 'stock')
+      .append('text')
+      .attr('dx', d => d.r + 5)
+      .attr('dy', 4)
+      .attr('fill', '#c9d1d9')
+      .attr('font-size', 10)
+      .attr('pointer-events', 'none')
+      .text(d => d.name);
 
     // 环节间关系标签（简化版：只在上游关系较远的链路上标注）
     const linkLabels = g.append('g').selectAll('.link-label')

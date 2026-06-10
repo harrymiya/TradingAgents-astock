@@ -46,7 +46,6 @@ export default function App() {
   const init = getInitParams();
   const [currentIndustry, setCurrentIndustry] = useState(init.industry);
   const [colorMetric, setColorMetric] = useState(init.metric);
-  const [labelMode, setLabelMode] = useState(init.label);
   const [stockPrices, setStockPrices] = useState(priceData.prices || {});
   const [tooltip, setTooltip] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -136,8 +135,6 @@ export default function App() {
         <Controls
           colorMetric={colorMetric}
           onColorMetricChange={setColorMetric}
-          labelMode={labelMode}
-          onLabelModeChange={setLabelMode}
           onRefresh={fetchPrices}
           loading={loading}
           lastUpdate={lastUpdate}
@@ -148,7 +145,6 @@ export default function App() {
             industryData={industryData}
             stockPrices={stockPrices}
             colorMetric={colorMetric}
-            labelMode={labelMode}
             onTooltip={setTooltip}
             onNodeClick={handleNodeClick}
             selectedNode={selectedNode}
