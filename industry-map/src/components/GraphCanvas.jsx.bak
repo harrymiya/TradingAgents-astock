@@ -281,267 +281,476 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
 let svgRefCache = null;
 
 // ============================================================
-// 模式2：横向产业链布局（简化版）
-//  每level一列，环节用文字标题代替大圆点
-//  公司节点在每个环节标题下竖排列出
+// 模式2：横向产业链布局 — 每level一列，同列垂直排列
+//  从左到右：level 0（上游）→ level max（下游）
+//  每列宽度固定200px，列间距20px
+//  同一列的环节垂直堆叠，按stockCount降序排列
+//  列间连线用水平线+箭头
 // ============================================================
 function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
   try {
   const links_data = data['环节'];
   const linkNames = Object.keys(links_data);
+
+  // 环节颜色表
   const linkColorMap = {};
-  linkNames.forEach((name, i) => { linkColorMap[name] = LINK_COLORS[i % LINK_COLORS.length]; });
+  linkNames.forEach((name, i) => {
+    linkColorMap[name] = LINK_COLORS[i % LINK_COLORS.length];
+  });
 
-  // --- 1. 拓扑排序 ---
+  // --- 1. 使用JSON中预定义的level（从DB的chain_links.level直接导出） ---
+  // 不再做BFS拓扑排序，因为cpo.json等链已经预设了正确的level分组
+  // 同level的环节放在同一列
   const level = {};
-  const inDeg = {};
-  for (const name of linkNames) inDeg[name] = 0;
-  for (const [name, ld] of Object.entries(links_data)) {
-    for (const up of (ld['上游'] || [])) { if (links_data[up]) inDeg[name]++; }
-  }
-  let queue = [];
-  for (const name of linkNames) { if (inDeg[name] === 0) { level[name] = 0; queue.push(name); } }
-  const hasRel = linkNames.some(n => (links_data[n]['上游'] || []).length > 0 || (links_data[n]['下游'] || []).length > 0);
-  if (!hasRel) {
-    linkNames.forEach((name, idx) => { level[name] = idx; });
-  } else {
-    if (queue.length === 0) { level[linkNames[0]] = 0; queue = [linkNames[0]]; }
-    const visited = new Set(Object.keys(level));
-    while (queue.length > 0) {
-      const next = [];
-      for (const name of queue) {
-        for (const down of (links_data[name]['下游'] || [])) {
-          if (links_data[down] && !visited.has(down)) { level[down] = level[name] + 1; visited.add(down); next.push(down); }
-        }
-      }
-      queue = next;
+  const hasLevelField = linkNames.some(name => links_data[name]['level'] !== undefined);
+  
+  if (hasLevelField) {
+    // 使用预定义的level
+    for (const name of linkNames) {
+      level[name] = links_data[name]['level'] || 0;
     }
-    const maxL = Math.max(...Object.values(level), 0);
-    for (const name of linkNames) { if (!visited.has(name)) { level[name] = maxL + 1; visited.add(name); } }
+  } else {
+    // 降级：通过上下游关系BFS计算level
+    const inDeg = {};
+    for (const name of linkNames) inDeg[name] = 0;
+    for (const [name, ld] of Object.entries(links_data)) {
+      for (const up of (ld['上游'] || [])) {
+        if (links_data[up]) inDeg[name]++;
+      }
+    }
+  
+    let queue = [];
+    for (const name of linkNames) {
+      if (inDeg[name] === 0) {
+        level[name] = 0;
+        queue.push(name);
+      }
+    }
+  
+    const hasAnyUpstream = linkNames.some(name => (links_data[name]['上游'] || []).length > 0);
+    const hasAnyDownstream = linkNames.some(name => (links_data[name]['下游'] || []).length > 0);
+    const hasAnyRelation = hasAnyUpstream || hasAnyDownstream;
+  
+    if (!hasAnyRelation) {
+      linkNames.forEach((name, idx) => { level[name] = idx; });
+    } else {
+      if (queue.length === 0) { level[linkNames[0]] = 0; queue.push(linkNames[0]); }
+      const visited = new Set(Object.keys(level));
+      while (queue.length > 0) {
+        const next = [];
+        for (const name of queue) {
+          const cur = level[name];
+          for (const down of (links_data[name]['下游'] || [])) {
+            if (links_data[down] && !visited.has(down)) {
+              level[down] = cur + 1;
+              visited.add(down);
+              next.push(down);
+            }
+          }
+        }
+        queue = next;
+      }
+      const maxLvl = Math.max(...Object.values(level), 0);
+      for (const name of linkNames) {
+        if (!visited.has(name)) { level[name] = maxLvl + 1; visited.add(name); }
+      }
+    }
   }
 
+  // --- 2. 按层级分组 ---
   const levelGroups = {};
-  for (const [name, lvl] of Object.entries(level)) { if (!levelGroups[lvl]) levelGroups[lvl] = []; levelGroups[lvl].push(name); }
+  for (const [name, lvl] of Object.entries(level)) {
+    if (!levelGroups[lvl]) levelGroups[lvl] = [];
+    levelGroups[lvl].push(name);
+  }
   const sortedLevels = Object.keys(levelGroups).sort((a, b) => Number(a) - Number(b));
 
-  // --- 2. 布局参数 ---
-  const COL_W = 210, COL_GAP = 20, PADDING_TOP = 70, PADDING_BOTTOM = 20, PADDING_LEFT = 20, STOCK_H = 20, BETWEEN_LINK_H = 18;
+  // --- 3. 布局参数 ---
+  const COL_W = 200;            // 每列宽度
+  const COL_GAP = 20;           // 列间距
+  const PADDING_TOP = 70;       // 顶部标签+间距
+  const PADDING_BOTTOM = 30;    // 底部间距
+  const PADDING_LEFT = 20;      // 左侧边距
+  const PADDING_RIGHT = 20;     // 右侧边距
+  const LINK_RADIUS = 22;       // 环节圆基础半径
+  const LINK_SECTION_H = 40;    // 环节圆+名称区域高度
+  const STOCK_H = 20;           // 每个股票行高（含间距）
+  const BETWEEN_LINK_H = 24;    // 不同环节之间的垂直间距（加大防止重叠）
+  const LINK_LABEL_Y = 60;      // 环节名称在圆下方的y偏移（相对环节顶部）
+
+  // layout宽度
   const layoutW = sortedLevels.length * COL_W + (sortedLevels.length - 1) * COL_GAP;
   const centerOffsetX = Math.max(0, (width - layoutW) / 2);
 
-  // --- 3. 计算列高 ---
+  // --- 4. 计算每一列的高度（根据该level所有环节的stock总数）---
+  // 每列：环节圆+名称 + 每个环节的股票列
+  // 为每个level计算列高度，取所有环节中的最大值
   const levelColH = {};
   for (const lvl of sortedLevels) {
     const names = levelGroups[lvl];
-    let total = 0;
-    const sortedNames = [...names].sort((a, b) => (links_data[b]['股票'].length) - (links_data[a]['股票'].length));
-    for (let i = 0; i < sortedNames.length; i++) {
-      const n = sortedNames[i];
-      total += 22 + links_data[n]['股票'].length * STOCK_H + (i < sortedNames.length - 1 ? BETWEEN_LINK_H : 0);
+    let maxH = 0;
+    for (const name of names) {
+      const nStocks = links_data[name]['股票'].length;
+      const h = LINK_SECTION_H + nStocks * STOCK_H + BETWEEN_LINK_H;
+      if (h > maxH) maxH = h;
     }
-    levelColH[lvl] = total;
+    // 列内总高度 = 所有环节高度之和 + 环节间间距
+    let totalH = 0;
+    const sortedNames = [...names].sort((a, b) =>
+      (links_data[b]['股票'].length) - (links_data[a]['股票'].length)
+    );
+    for (let i = 0; i < sortedNames.length; i++) {
+      const name = sortedNames[i];
+      const nStocks = links_data[name]['股票'].length;
+      totalH += LINK_SECTION_H + nStocks * STOCK_H;
+      if (i < sortedNames.length - 1) totalH += BETWEEN_LINK_H;
+    }
+    levelColH[lvl] = totalH;
   }
 
+  // 找出最高列的高度，决定viewport高度
   const maxColH = Math.max(...Object.values(levelColH), 0);
   const viewH = Math.max(height || 800, maxColH + PADDING_TOP + PADDING_BOTTOM);
-  const viewW = Math.max(width || 1200, layoutW + PADDING_LEFT + 20);
+  const viewW = Math.max(width || 1200, layoutW + PADDING_LEFT + PADDING_RIGHT);
   const offsetY = Math.max(0, (viewH - maxColH - PADDING_TOP - PADDING_BOTTOM) / 2) + PADDING_TOP;
-  svg.attr('viewBox', `0 0 ${viewW} ${viewH}`).style('width', '100%').style('height', '100%');
 
-  // --- 4. 构建节点 ---
-  const nodes = [], links = [];
+  svg.attr('viewBox', `0 0 ${viewW} ${viewH}`)
+     .style('width', '100%').style('height', '100%');
+
+  // --- 5. 构建节点坐标 ---
+  const nodes = [];
+  const links = [];
+
+  // 列内环节排序：按stockCount降序（多的在上面）
   const levelSortedGroups = {};
   for (const [lvl, names] of Object.entries(levelGroups)) {
-    levelSortedGroups[lvl] = [...names].sort((a, b) => (links_data[b]['股票'].length) - (links_data[a]['股票'].length));
+    levelSortedGroups[lvl] = [...names].sort((a, b) =>
+      (links_data[b]['股票'].length) - (links_data[a]['股票'].length)
+    );
   }
-  const levelX = {};
-  sortedLevels.forEach((lvl, idx) => { levelX[lvl] = centerOffsetX + PADDING_LEFT + idx * (COL_W + COL_GAP) + COL_W / 2; });
 
+  // 为每个level计算列水平x中心位置
+  const levelX = {};
+  sortedLevels.forEach((lvl, idx) => {
+    levelX[lvl] = centerOffsetX + PADDING_LEFT + idx * (COL_W + COL_GAP) + COL_W / 2;
+  });
+
+  // 遍历每个level（列），构建节点
   for (const lvl of sortedLevels) {
     const names = levelSortedGroups[lvl];
+    const lvlNum = Number(lvl);
     const colCenterX = levelX[lvl];
-    const colLeft = colCenterX - COL_W / 2 + 10;
-    let yPos = offsetY;
+    const colLeft = colCenterX - COL_W / 2 + 10; // 股票文字左对齐起始x
+
+    let yPos = offsetY; // 本列当前y位置（从上往下）
+
     for (const name of names) {
+      const barrier = links_data[name]['壁垒'] || 0;
+      const r = LINK_RADIUS + barrier * 4;
       const color = linkColorMap[name];
+      const linkNodeId = 'link_' + name;
       const nStocks = links_data[name]['股票'].length;
-      const titleY = yPos + 12;
-      nodes.push({ id: 'link_' + name, name, type: 'link', code: null, barrier: links_data[name]['壁垒'] || 0, stockCount: nStocks, upstream: links_data[name]['上游'] || [], downstream: links_data[name]['下游'] || [], desc: links_data[name]['描述'], color, r: 0, x: colLeft, y: titleY, level: Number(lvl), stocks: [] });
-      let sy = titleY + 6;
+      const sectionH = LINK_SECTION_H + nStocks * STOCK_H;
+
+      // --- 环节节点（圆在列内居中） ---
+      const cx = colCenterX;
+      const cy = yPos + r + 2; // 圆在环节区域顶部
+
+      const linkNode = {
+        id: linkNodeId,
+        name: name,
+        type: 'link',
+        code: null,
+        barrier: barrier,
+        localRate: links_data[name]['国产化率'],
+        stockCount: nStocks,
+        upstream: links_data[name]['上游'] || [],
+        downstream: links_data[name]['下游'] || [],
+        desc: links_data[name]['描述'],
+        color: color,
+        r: r,
+        x: cx,
+        y: cy,
+        level: lvlNum,
+        stocks: links_data[name]['股票'].map(c => ({
+          code: c,
+          name: (stockPrices[c] && stockPrices[c].name) || c,
+        })),
+      };
+      nodes.push(linkNode);
+
+      // --- 环节名称（圆的下方） ---
+      // 名称文字位置
+      const nameY = cy + r + 14;
+
+      // --- 股票节点 — 在环节圆下方竖排列出 ---
+      let sy = nameY + 4;
       for (const code of links_data[name]['股票']) {
         const price = stockPrices[code] || {};
         const feat = (featData && featData[code]) || {};
-        let metricVal, colorMin, colorMax, fillColor;
+
+        let metricVal, colorMin, colorMax;
         switch (colorMetric) {
           case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; break;
           case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; break;
           case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; break;
           case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; break;
+          case 'rsi': metricVal = feat.rsi !== undefined ? feat.rsi : 0; colorMin = -2; colorMax = 2; break;
+          case 's3_score': metricVal = feat.s3_score !== undefined ? feat.s3_score : 50; colorMin = 0; colorMax = 100; break;
+          case 'composite': metricVal = feat.composite !== undefined ? feat.composite : 50; colorMin = 0; colorMax = 100; break;
+          case 'pos_20d': metricVal = feat.pos_20d !== undefined ? feat.pos_20d : 50; colorMin = 0; colorMax = 100; break;
+          case 'ma20_pct': metricVal = feat.ma20_pct !== undefined ? feat.ma20_pct : 0; colorMin = -20; colorMax = 20; break;
           default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10;
         }
+
+        let fillColor;
         if (colorMetric === 'rsi') fillColor = valueToColor(metricVal, -2, 2);
         else if (colorMetric === 'composite' || colorMetric === 's3_score') fillColor = valueToColor(metricVal, 0, 100);
         else fillColor = valueToColor(metricVal, colorMin, colorMax);
-        nodes.push({ id: code, name: price.name || code, code: code.length >= 6 ? code.slice(-6) : code, codeFull: code, type: 'stock', price: price.price || 0, chg: price.chg || 0, yearChg: price.yearChg || 0, volume: price.volume || 0, amplitude: price.amplitude || 0, linkName: name, linkColor: color, r: 4, fillColor, x: colLeft + 6, y: sy + STOCK_H / 2, chgStr: (price.chg >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%', feat, level: Number(lvl) });
-        links.push({ source: code, target: 'link_' + name });
+
+        const nameStr = price.name || code;
+        const codeShort = code.length >= 6 ? code.slice(-6) : code;
+
+        const stockNode = {
+          id: code,
+          name: nameStr,
+          code: codeShort,
+          codeFull: code,
+          type: 'stock',
+          price: price.price || 0,
+          chg: price.chg || 0,
+          yearChg: price.yearChg || 0,
+          volume: price.volume || 0,
+          amplitude: price.amplitude || 0,
+          linkName: name,
+          linkColor: color,
+          r: 4,
+          fillColor: fillColor,
+          x: colLeft + 6,
+          y: sy + STOCK_H / 2,
+          chgStr: (price.chg >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%',
+          feat: feat,
+          level: lvlNum,
+        };
+        nodes.push(stockNode);
+        links.push({ source: code, target: linkNodeId });
         sy += STOCK_H;
       }
-      for (const up of (links_data[name]['上游'] || [])) { if (linkNames.includes(up)) links.push({ source: 'link_' + up, target: 'link_' + name, type: 'flow' }); }
-      yPos += 22 + nStocks * STOCK_H + BETWEEN_LINK_H;
+
+      // 环节间flow连线
+      for (const up of (links_data[name]['上游'] || [])) {
+        if (linkNames.includes(up)) {
+          links.push({ source: 'link_' + up, target: linkNodeId, type: 'flow' });
+        }
+      }
+
+      yPos += sectionH + BETWEEN_LINK_H;
     }
   }
 
-  // --- 5. 绘制 ---
+  // --- 6. 绘制 ---
   const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.h-node')).on('zoom', (event) => { g.attr('transform', event.transform); }));
+
+  // 缩放 + 拖拽平移
+  const zoom = d3.zoom()
+    .scaleExtent([0.3, 5])
+    .filter(event => !event.target.closest('.h-node'))
+    .on('zoom', (event) => { g.attr('transform', event.transform); });
+  svg.call(zoom);
+
+  // --- 列背景（按level奇偶交替） ---
   for (const lvl of sortedLevels) {
+    const lvlNum = Number(lvl);
     const cx = levelX[lvl];
-    g.append('rect').attr('x', cx - COL_W / 2).attr('y', offsetY - 10).attr('width', COL_W).attr('height', (levelColH[lvl] || 0) + 20).attr('fill', Number(lvl) % 2 === 0 ? '#161b22' : '#0d1117').attr('rx', 6).attr('opacity', 0.3);
-  }
-  const positions = ['上游', '中上游', '中游', '中下游', '下游', '终端'];
-  for (const lvl of sortedLevels) {
-    const cx = levelX[lvl];
-    g.append('text').attr('x', cx).attr('y', offsetY - 24).attr('text-anchor', 'middle').attr('fill', '#58a6ff').attr('font-size', 12).attr('font-weight', 700).text(positions[Math.min(Number(lvl), 5)] + '级');
-    g.append('line').attr('x1', cx - COL_W / 2 + 4).attr('y1', offsetY - 16).attr('x2', cx + COL_W / 2 - 4).attr('y2', offsetY - 16).attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
-  }
-  const defs = svg.append('defs');
-  defs.append('marker').attr('id', 'harrow').attr('viewBox', '0 -5 10 10').attr('refX', 18).attr('refY', 0).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto').append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
-  for (const link of links) {
-    if (link.type !== 'flow') continue;
-    const src = nodes.find(n => n.id === link.source);
-    const tgt = nodes.find(n => n.id === link.target);
-    if (!src || !tgt) continue;
-    g.append('line').attr('x1', levelX[src.level] + COL_W / 2).attr('y1', src.y).attr('x2', levelX[tgt.level] - COL_W / 2).attr('y2', tgt.y).attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('stroke-opacity', 0.5).attr('marker-end', 'url(#harrow)');
+    const colTop = offsetY - 10;
+    const colH = (levelColH[lvl] || 0) + 20;
+    g.append('rect')
+      .attr('x', cx - COL_W / 2).attr('y', colTop)
+      .attr('width', COL_W).attr('height', colH)
+      .attr('fill', lvlNum % 2 === 0 ? '#161b22' : '#0d1117')
+      .attr('rx', 6).attr('ry', 6)
+      .attr('opacity', 0.3);
   }
 
-  const nodeG = g.append('g').selectAll('.h-node').data(nodes).join('g').attr('class', 'h-node').style('cursor', 'pointer');
-  nodeG.filter(d => d.type === 'link').append('text').attr('x', d => d.x).attr('y', d => d.y).attr('fill', d => d.color).attr('font-size', 11).attr('font-weight', 700).attr('pointer-events', 'none').text(d => d.name.length > 10 ? d.name.slice(0, 10) + '..' : d.name);
-  nodeG.filter(d => d.type === 'link').append('rect').attr('x', d => d.x - 4).attr('y', d => d.y - 8).attr('width', 3).attr('height', 12).attr('rx', 1.5).attr('fill', d => d.color);
-  nodeG.filter(d => d.type === 'stock').append('circle').attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e').attr('fill-opacity', 1.0).attr('stroke', d => d.fillColor || '#8b949e').attr('stroke-width', 2.5);
-  nodeG.filter(d => d.type === 'stock').append('text').attr('x', d => d.x + 8).attr('y', d => d.y + 3).attr('fill', '#c9d1d9').attr('font-size', 9).attr('pointer-events', 'auto').text(d => d.name.length > 6 ? d.name.slice(0, 6) + '..' : d.name);
-  nodeG.filter(d => d.type === 'stock').append('text').attr('x', d => d.x + 82).attr('y', d => d.y + 3).attr('fill', d => d.chg >= 0 ? '#ff6b6b' : '#51cf66').attr('font-size', 8).attr('pointer-events', 'auto').text(d => d.chgStr);
-  nodeG.filter(d => d.type === 'stock').append('text').attr('x', d => d.x + 124).attr('y', d => d.y + 3).attr('fill', '#6e7681').attr('font-size', 8).attr('pointer-events', 'auto').text(d => d.code);
-  nodeG.on('mouseenter', function(event, d) { const rect = svgRefCache.getBoundingClientRect(); onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top }); });
-  nodeG.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
-  nodeG.on('click', function(event, d) { event.stopPropagation(); if (onNodeClick) onNodeClick(d); });
+  // --- 顶部标签（上游级 / 中游级 / 下游级） ---
+  const positions = ['上游', '中上游', '中游', '中下游', '下游', '终端'];
+  for (const lvl of sortedLevels) {
+    const lvlNum = Number(lvl);
+    const cx = levelX[lvl];
+    const label = positions[Math.min(lvlNum, 5)];
+
+    g.append('text')
+      .attr('x', cx).attr('y', offsetY - 24)
+      .attr('text-anchor', 'middle').attr('fill', '#58a6ff')
+      .attr('font-size', 12).attr('font-weight', 700)
+      .text(label + '级');
+
+    // 列顶分隔线
+    g.append('line')
+      .attr('x1', cx - COL_W / 2 + 4).attr('y1', offsetY - 16)
+      .attr('x2', cx + COL_W / 2 - 4).attr('y2', offsetY - 16)
+      .attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
+  }
+
+  // --- 箭头定义 ---
+  const defs = svg.append('defs');
+  defs.append('marker')
+    .attr('id', 'harrow')
+    .attr('viewBox', '0 -5 10 10').attr('refX', 18).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
+
+  // --- 连线（环节间flow连线） ---
+  for (const link of links) {
+    if (link.type !== 'flow') continue;
+    const srcNode = nodes.find(n => n.id === link.source);
+    const tgtNode = nodes.find(n => n.id === link.target);
+    if (!srcNode || !tgtNode) continue;
+
+    const srcX = srcNode.x;
+    const srcY = srcNode.y;
+    const tgtX = tgtNode.x;
+    const tgtY = tgtNode.y;
+
+    // 水平线（从源列右边缘到目标列左边缘，带箭头）
+    // 从源圆右边缘开始，到目标圆左边缘结束
+    const sr = srcNode.r || LINK_RADIUS;
+    const tr = tgtNode.r || LINK_RADIUS;
+    const startX = srcX + sr;
+    const endX = tgtX - tr;
+
+    g.append('line')
+      .attr('x1', startX).attr('y1', srcY)
+      .attr('x2', endX).attr('y2', tgtY)
+      .attr('fill', 'none')
+      .attr('stroke', '#58a6ff').attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.5)
+      .attr('marker-end', 'url(#harrow)');
+  }
+
+  // --- 节点组 ---
+  const nodeG = g.append('g').selectAll('.h-node')
+    .data(nodes).join('g').attr('class', 'h-node').style('cursor', 'pointer');
+
+  // 环节圆（双圈效果）
+  nodeG.filter(d => d.type === 'link').append('circle')
+    .attr('cx', d => d.x).attr('cy', d => d.y)
+    .attr('r', d => d.r).attr('fill', d => d.color)
+    .attr('fill-opacity', 0.2).attr('stroke', d => d.color).attr('stroke-width', 2.5);
+
+  nodeG.filter(d => d.type === 'link').append('circle')
+    .attr('cx', d => d.x).attr('cy', d => d.y)
+    .attr('r', d => d.r + 4).attr('fill', 'none').attr('stroke', d => d.color)
+    .attr('stroke-width', d => 1 + (d.barrier || 0) * 0.5).attr('stroke-opacity', 0.3);
+
+  // 环节名称（在圆下方）
+  nodeG.filter(d => d.type === 'link').append('text')
+    .attr('x', d => d.x).attr('y', d => d.y + d.r + 14)
+    .attr('text-anchor', 'middle').attr('fill', '#e6edf3')
+    .attr('font-size', 11).attr('font-weight', 600).attr('pointer-events', 'none')
+    .text(d => d.name.length > 8 ? d.name.slice(0, 8) + '..' : d.name);
+
+  // 股票圆点（在列内左对齐）
+  nodeG.filter(d => d.type === 'stock').append('circle')
+    .attr('cx', d => d.x).attr('cy', d => d.y)
+    .attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e')
+    .attr('fill-opacity', 1.0).attr('stroke', d => d.fillColor || '#8b949e')
+    .attr('stroke-width', 2.5);
+
+  // 股票名称（圆点右侧）
+  nodeG.filter(d => d.type === 'stock').append('text')
+    .attr('x', d => d.x + 8).attr('y', d => d.y + 3)
+    .attr('fill', '#c9d1d9').attr('font-size', 9)
+    .attr('pointer-events', 'auto')
+    .text(d => d.name.length > 6 ? d.name.slice(0, 6) + '..' : d.name);
+
+  // 涨跌幅/指标值
+  nodeG.filter(d => d.type === 'stock').append('text')
+    .attr('x', d => d.x + 82).attr('y', d => d.y + 3)
+    .attr('fill', d => {
+      if (colorMetric === 'chg' || colorMetric === 'yearChg') {
+        return d.chg >= 0 ? '#ff6b6b' : '#51cf66';
+      }
+      return '#ffb320';
+    })
+    .attr('font-size', 8).attr('pointer-events', 'auto')
+    .text(d => {
+      switch(colorMetric) {
+        case 'chg': return d.chgStr;
+        case 'yearChg': return (d.yearChg >= 0 ? '+' : '') + (d.yearChg || 0).toFixed(1) + '%';
+        case 'volume': return (d.volume / 10000).toFixed(0) + '万';
+        case 'amplitude': return (d.amplitude || 0).toFixed(1) + '%';
+        case 'rsi':
+          if (d.feat && d.feat.rsi_label) return d.feat.rsi_label;
+          return (d.feat && d.feat.rsi !== undefined) ? d.feat.rsi.toFixed(0) : '-';
+        case 's3_score':
+          if (d.feat && d.feat.s3_label) return d.feat.s3_label;
+          return (d.feat && d.feat.s3_score !== undefined) ? d.feat.s3_score.toFixed(0) : '-';
+        case 'composite': return (d.feat && d.feat.composite !== undefined) ? d.feat.composite.toFixed(0) : '-';
+        case 'pos_20d': return (d.feat && d.feat.pos_20d !== undefined) ? d.feat.pos_20d.toFixed(0) : '-';
+        case 'ma20_pct': return (d.feat && d.feat.ma20_pct !== undefined) ? d.feat.ma20_pct.toFixed(1) + '%' : '-';
+        default: return d.chgStr;
+      }
+    });
+
+  // 代码
+  nodeG.filter(d => d.type === 'stock').append('text')
+    .attr('x', d => d.x + 124).attr('y', d => d.y + 3)
+    .attr('fill', '#6e7681').attr('font-size', 8)
+    .attr('pointer-events', 'auto')
+    .text(d => d.code);
+
+  // --- 交互 ---
+  nodeG.on('mouseenter', function(event, d) {
+    const rect = svgRefCache.getBoundingClientRect();
+    onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top });
+  });
+  nodeG.on('mouseleave', (event, d) => {
+    if (onTooltip) onTooltip(null);
+  });
+  nodeG.on('click', function(event, d) {
+    event.stopPropagation();
+    if (onNodeClick) onNodeClick(d);
+  });
   svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
+
+  // --- 选中高亮 ---
   if (selectedNode) {
     nodeG.selectAll('.sel-box').remove();
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
-      group.insert('rect', ':first-child').attr('class', 'sel-box')
-        .attr('x', d.x - 6).attr('y', d.type === 'stock' ? d.y - 8 : d.y - 10)
-        .attr('width', d.type === 'stock' ? 155 : 160).attr('height', d.type === 'stock' ? 16 : 18)
-        .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 4);
-    });
-  }
-} catch(e) { console.error('HorizontalGraph error:', e.message); }}
-
-// ============================================================
-// 模式3：三段式 — 上游/中游/下游三个大节点
-//  上游→中游→下游用箭头串联，每个大节点下展开子环节+公司
-// ============================================================
-function buildCompactGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
-  try {
-  const links_data = data['环节'];
-  const linkNames = Object.keys(links_data);
-
-  // --- 1. level分组并归并到3桶 ---
-  const level = {};
-  const inDeg = {};
-  for (const name of linkNames) inDeg[name] = 0;
-  for (const [name, ld] of Object.entries(links_data)) { for (const up of (ld['上游'] || [])) { if (links_data[up]) inDeg[name]++; } }
-  let queue = [];
-  for (const name of linkNames) { if (inDeg[name] === 0) { level[name] = 0; queue.push(name); } }
-  const hasRel = linkNames.some(n => (links_data[n]['上游'] || []).length > 0 || (links_data[n]['下游'] || []).length > 0);
-  if (!hasRel) { linkNames.forEach((name, idx) => { level[name] = Math.min(idx, 2); }); }
-  else {
-    if (queue.length === 0) { level[linkNames[0]] = 0; queue = [linkNames[0]]; }
-    const visited = new Set(Object.keys(level));
-    while (queue.length > 0) {
-      const next = [];
-      for (const name of queue) { for (const down of (links_data[name]['下游'] || [])) { if (links_data[down] && !visited.has(down)) { level[down] = level[name] + 1; visited.add(down); next.push(down); } } }
-      queue = next;
-    }
-    const maxL = Math.max(...Object.values(level), 0);
-    for (const name of linkNames) { if (!visited.has(name)) { level[name] = maxL + 1; visited.add(name); } }
-  }
-
-  const maxLevel = Math.max(...Object.values(level), 1);
-  const bucketSize = Math.max(1, Math.ceil((maxLevel + 1) / 3));
-  const finalLevels = { 0: [], 1: [], 2: [] };
-  for (const [name, lvl] of Object.entries(level)) {
-    const b = Math.min(Math.floor(lvl / bucketSize), 2);
-    finalLevels[b].push(name);
-  }
-
-  const LEVEL_NAMES = ['上游', '中游', '下游'];
-  const LEVEL_COLORS = ['#58a6ff', '#d29922', '#3fb950'];
-  const NODE_RADIUS = 36, COL_W = 220, COL_GAP = 40, PADDING_TOP = 80, STOCK_H = 18, BETWEEN_SUB_H = 16;
-
-  // 计算列高
-  const colHeights = {};
-  for (let b = 0; b <= 2; b++) {
-    let h = 0;
-    for (const name of finalLevels[b]) { h += 18 + (links_data[name] ? links_data[name]['股票'].length : 0) * STOCK_H + BETWEEN_SUB_H; }
-    colHeights[b] = h;
-  }
-
-  const layoutW = 3 * COL_W + 2 * COL_GAP;
-  const maxColH = Math.max(colHeights[0] || 0, colHeights[1] || 0, colHeights[2] || 0);
-  const viewH = Math.max(height || 800, maxColH + NODE_RADIUS * 2 + PADDING_TOP + 60);
-  const viewW = Math.max(width || 1200, layoutW + 20);
-  svg.attr('viewBox', `0 0 ${viewW} ${viewH}`).style('width', '100%').style('height', '100%');
-
-  const offsetX = Math.max(0, (viewW - layoutW) / 2);
-  const colXs = {};
-  for (let b = 0; b <= 2; b++) { colXs[b] = offsetX + b * (COL_W + COL_GAP) + COL_W / 2; }
-  const bigY = PADDING_TOP + 20;
-
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.c-node')).on('zoom', (event) => { g.attr('transform', event.transform); }));
-
-  // 箭头
-  const defs = svg.append('defs');
-  defs.append('marker').attr('id', 'carrow').attr('viewBox', '0 -5 10 10').attr('refX', NODE_RADIUS + 5).attr('refY', 0).attr('markerWidth', 8).attr('markerHeight', 8).attr('orient', 'auto').append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
-
-  for (let b = 0; b < 2; b++) {
-    g.append('line').attr('x1', colXs[b] + NODE_RADIUS).attr('y1', bigY).attr('x2', colXs[b+1] - NODE_RADIUS).attr('y2', bigY).attr('stroke', '#58a6ff').attr('stroke-width', 2.5).attr('stroke-opacity', 0.7).attr('marker-end', 'url(#carrow)');
-  }
-
-  const nodeG = g.append('g').selectAll('.c-node').data([0,1,2]).join('g').attr('class', 'c-node');
-  nodeG.each(function(bucket) {
-    const bg = d3.select(this);
-    const cx = colXs[bucket];
-    const names = finalLevels[bucket];
-    const color = LEVEL_COLORS[bucket];
-
-    bg.append('circle').attr('cx', cx).attr('cy', bigY).attr('r', NODE_RADIUS).attr('fill', color).attr('fill-opacity', 0.2).attr('stroke', color).attr('stroke-width', 3);
-    bg.append('text').attr('x', cx).attr('y', bigY + 5).attr('text-anchor', 'middle').attr('fill', '#e6edf3').attr('font-size', 16).attr('font-weight', 700).text(LEVEL_NAMES[bucket]);
-
-    let yPos = bigY + NODE_RADIUS + 16;
-    for (const name of names) {
-      const ld = links_data[name];
-      if (!ld) continue;
-      const subColor = LINK_COLORS[linkNames.indexOf(name) % LINK_COLORS.length];
-      bg.append('text').attr('x', cx - COL_W / 2 + 12).attr('y', yPos + 10).attr('fill', subColor).attr('font-size', 11).attr('font-weight', 600).text(name);
-      bg.append('rect').attr('x', cx - COL_W / 2 + 6).attr('y', yPos + 3).attr('width', 3).attr('height', 12).attr('rx', 1.5).attr('fill', subColor);
-      yPos += 18;
-      for (const code of ld['股票']) {
-        const price = stockPrices[code] || {};
-        const chg = price.chg || 0;
-        const fc = valueToColor(chg, -10, 10);
-        bg.append('circle').attr('cx', cx - COL_W / 2 + 16).attr('cy', yPos + 7).attr('r', 4).attr('fill', fc).attr('fill-opacity', 1.0).attr('stroke', fc).attr('stroke-width', 2);
-        bg.append('text').attr('x', cx - COL_W / 2 + 26).attr('y', yPos + 10).attr('fill', '#c9d1d9').attr('font-size', 9).text((price.name || code).length > 8 ? (price.name || code).slice(0, 8) + '..' : (price.name || code));
-        bg.append('text').attr('x', cx + COL_W / 2 - 60).attr('y', yPos + 10).attr('fill', chg >= 0 ? '#ff6b6b' : '#51cf66').attr('font-size', 8).text((chg >= 0 ? '+' : '') + chg.toFixed(1) + '%');
-        yPos += STOCK_H;
+      if (d.type === 'stock') {
+        const bw = 155, bh = 16;
+        group.insert('rect', ':first-child')
+          .attr('class', 'sel-box')
+          .attr('x', d.x - 6).attr('y', d.y - 8)
+          .attr('width', bw).attr('height', bh)
+          .attr('fill', 'none')
+          .attr('stroke', '#58a6ff')
+          .attr('stroke-width', 1.5)
+          .attr('rx', 4).attr('ry', 4);
+      } else {
+        group.insert('rect', ':first-child')
+          .attr('class', 'sel-box')
+          .attr('x', d.x - (d.r || LINK_RADIUS) - 8).attr('y', d.y - (d.r || LINK_RADIUS) - 8)
+          .attr('width', (d.r || LINK_RADIUS) * 2 + 16).attr('height', (d.r || LINK_RADIUS) * 2 + 16)
+          .attr('fill', 'none')
+          .attr('stroke', '#58a6ff')
+          .attr('stroke-width', 1.5)
+          .attr('rx', 4).attr('ry', 4);
       }
-      yPos += BETWEEN_SUB_H;
-    }
-    bg.insert('rect', ':first-child').attr('x', cx - COL_W / 2).attr('y', bigY - NODE_RADIUS).attr('width', COL_W).attr('height', Math.max(yPos - bigY + NODE_RADIUS + 10, NODE_RADIUS * 2 + 20)).attr('fill', bucket % 2 === 0 ? '#161b22' : '#0d1117').attr('rx', 8).attr('opacity', 0.25);
-  });
-  svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
-} catch(e) { console.error('CompactGraph error:', e.message); }}
+    });
+  } else {
+    nodeG.selectAll('.sel-box').remove();
+  }
+} catch(e) {
+  console.error('buildHorizontalGraph error:', e.message, e.stack);
+  var errDiv = document.createElement('div');
+  errDiv.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f00;color:#fff;padding:8px;z-index:9999;font-size:12px';
+  errDiv.textContent = 'Horizontal Error: ' + e.message;
+  document.body.appendChild(errDiv);
+}
+}
 
 // ============================================================
 // 主组件
@@ -567,8 +776,6 @@ export default function GraphCanvas({
 
     if (layoutMode === 'horizontal') {
       buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
-    } else if (layoutMode === 'compact') {
-      buildCompactGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
     } else {
       buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
     }

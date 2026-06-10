@@ -89,6 +89,7 @@ for ch_id, ch_name, ch_desc, stock_cnt in chains:
             "国产化率": lk_local or 50,
             "股票": codes,
             "描述": lk_desc or '',
+            "level": lk_level,
         }
     
     if not links_dict:

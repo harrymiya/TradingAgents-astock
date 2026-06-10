@@ -43,6 +43,22 @@ export default function Controls({
             </svg>
             横向
           </button>
+          <button
+            className={`mode-btn ${layoutMode === 'compact' ? 'active' : ''}`}
+            onClick={() => onLayoutModeChange('compact')}
+            title="三段式：上游→中游→下游串联"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="0.5" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+              <rect x="5.5" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+              <rect x="10.5" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+              <line x1="3.5" y1="7" x2="5.5" y2="7" stroke="currentColor" strokeWidth="1"/>
+              <polygon points="4.5,6.5 5,7 4.5,7.5" fill="currentColor"/>
+              <line x1="8.5" y1="7" x2="10.5" y2="7" stroke="currentColor" strokeWidth="1"/>
+              <polygon points="9.5,6.5 10,7 9.5,7.5" fill="currentColor"/>
+            </svg>
+            三段式
+          </button>
         </div>
       </div>
 
