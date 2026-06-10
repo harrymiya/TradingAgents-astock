@@ -241,8 +241,27 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
   );
 
   simulation.on('tick', () => {
-    linkG.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    linkG.attr('x1', d => {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const r = (d.source.r || 5);
+      return dist > 0 ? d.source.x + dx / dist * r : d.source.x;
+    }).attr('y1', d => {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const r = (d.source.r || 5);
+      return dist > 0 ? d.source.y + dy / dist * r : d.source.y;
+    }).attr('x2', d => {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const r = (d.target.r || 5);
+      return dist > 0 ? d.target.x - dx / dist * r : d.target.x;
+    }).attr('y2', d => {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const r = (d.target.r || 5);
+      return dist > 0 ? d.target.y - dy / dist * r : d.target.y;
+    });
     nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
     linkLabels.attr('x', d => (d.source.x + d.target.x) / 2)
       .attr('y', d => (d.source.y + d.target.y) / 2).text(d => '↓');
