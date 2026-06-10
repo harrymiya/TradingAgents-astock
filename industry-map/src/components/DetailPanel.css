@@ -1,0 +1,312 @@
+.detail-panel {
+  width: 340px;
+  min-width: 340px;
+  background: #0d1117;
+  border-left: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #21262d;
+}
+
+.detail-header h3 {
+  font-size: 14px;
+  color: #e6edf3;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.close-btn:hover {
+  color: #e6edf3;
+  background: #21262d;
+}
+
+.back-btn {
+  background: #161b22;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.back-btn:hover {
+  color: #e6edf3;
+  border-color: #58a6ff;
+}
+
+.detail-body {
+  padding: 12px 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 12px;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+/* 环节标题 */
+.link-name {
+  font-size: 20px;
+  color: #e6edf3;
+  margin: 0 0 6px;
+}
+
+.link-desc {
+  font-size: 12px;
+  color: #6e7681;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.link-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat {
+  font-size: 11px;
+  color: #8b949e;
+  background: #161b22;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* 上下游标签 */
+.flow-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  margin: 2px 4px 2px 0;
+  font-weight: 500;
+}
+.flow-tag.upstream {
+  background: #002d1b;
+  color: #3fb950;
+  border: 1px solid #003d20;
+}
+.flow-tag.downstream {
+  background: #1c002d;
+  color: #d2a8ff;
+  border: 1px solid #2a0040;
+}
+
+.link-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 股票列表 */
+.stock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stock-item {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: default;
+  transition: all 0.15s;
+}
+.stock-item.clickable {
+  cursor: pointer;
+}
+.stock-item.clickable:hover {
+  border-color: #58a6ff;
+  background: #1c2333;
+}
+
+.stock-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stock-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.stock-code {
+  font-size: 11px;
+  color: #6e7681;
+}
+
+.stock-chg {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.stock-chg.up { color: #00c853; }
+.stock-chg.down { color: #f85149; }
+
+.stock-sub {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #6e7681;
+}
+
+.stock-ind {
+  color: #58a6ff;
+}
+
+.stock-link {
+  color: #8b949e;
+}
+
+/* 公司详情头部 */
+.company-header {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.company-name {
+  font-size: 22px;
+  color: #e6edf3;
+  margin: 0;
+}
+
+.company-code {
+  font-size: 12px;
+  color: #6e7681;
+  margin-top: 2px;
+}
+
+/* 行情区 */
+.price-section {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.price-big {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.price-chg {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.price-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.price-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  background: #0d1117;
+  border-radius: 4px;
+}
+.price-item .label {
+  font-size: 10px;
+  color: #6e7681;
+  text-transform: uppercase;
+}
+.price-item .value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+/* 行业标签 */
+.industry-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ind-tag {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.ind-tag.l1 {
+  background: #001a33;
+  color: #58a6ff;
+  border: 1px solid #002d66;
+}
+.ind-tag.l2 {
+  background: #0d1b2a;
+  color: #8b949e;
+  border: 1px solid #1a2f4a;
+}
+.ind-tag.muted {
+  color: #6e7681;
+  background: #161b22;
+}
+
+/* 产业链环节 */
+.link-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #161b22;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+}
+.industry-name {
+  font-size: 12px;
+  color: #58a6ff;
+  font-weight: 500;
+}
+.arrow {
+  color: #6e7681;
+  font-size: 14px;
+}
+.link-name-badge {
+  font-size: 12px;
+  color: #e6edf3;
+  font-weight: 500;
+}

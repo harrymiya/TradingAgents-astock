@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import GraphCanvas from './components/GraphCanvas';
 import Controls from './components/Controls';
 import Tooltip from './components/Tooltip';
+import DetailPanel from './components/DetailPanel';
 import industryData from './data/industry_data.json';
 import priceData from './data/price_data.json';
 import './App.css';
@@ -10,7 +11,7 @@ import './App.css';
 const API_BASE = 'https://qt.gtimg.cn/q=';
 const BATCH_SIZE = 30;
 
-// 从 URL hash 获取初始参数: #industry=AI算力&metric=yearChg
+// 从 URL hash 获取初始参数
 function getInitParams() {
   const hash = window.location.hash.replace('#', '');
   const params = new URLSearchParams(hash);
@@ -19,6 +20,26 @@ function getInitParams() {
     metric: params.get('metric') || 'chg',
     label: params.get('label') || 'both',
   };
+}
+
+// 收集所有代码（包含每个环节的股票列表信息）
+function buildAllCodes(data) {
+  const codes = new Set();
+  const stockToLink = {};  // code -> 所属环节名
+  const linkStocks = {};   // 环节名 -> 该环节的股票列表
+  
+  for (const [indName, indData] of Object.entries(data)) {
+    for (const [linkName, linkData] of Object.entries(indData['环节'])) {
+      if (!linkStocks[indName]) linkStocks[indName] = {};
+      linkStocks[indName][linkName] = [];
+      for (const c of linkData['股票']) {
+        codes.add(c);
+        stockToLink[c] = linkName;
+        linkStocks[indName][linkName].push({ code: c, name: '' });
+      }
+    }
+  }
+  return { codes: [...codes], stockToLink, linkStocks };
 }
 
 export default function App() {
@@ -31,18 +52,14 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString('zh-CN'));
 
+  // 详情栏状态
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [detailHistory, setDetailHistory] = useState([]);  // 二级导航栈
+
   const graphRef = useRef(null);
 
-  // 收集所有产业链的股票代码
-  const allCodes = React.useMemo(() => {
-    const codes = new Set();
-    for (const ind of Object.values(industryData)) {
-      for (const link of Object.values(ind['环节'])) {
-        for (const c of link['股票']) codes.add(c);
-      }
-    }
-    return [...codes];
-  }, []);
+  // 构建所有代码和映射
+  const { codes: allCodes, stockToLink, linkStocks } = React.useMemo(() => buildAllCodes(industryData), []);
 
   // 获取行情数据
   const fetchPrices = useCallback(async () => {
@@ -69,7 +86,13 @@ export default function App() {
           const high = parseFloat(parts[33]) || 0;
           const low = parseFloat(parts[34]) || 0;
           const amplitude = high && low ? ((high - low) / low * 100) : 0;
-          results[code] = { price, chg, yearChg, monthChg: chg, volume, amplitude, name: parts[1] || code };
+          const pe = parseFloat(parts[39]) || 0;
+          const pb = parseFloat(parts[48]) || 0;
+          results[code] = {
+            price, chg, yearChg, monthChg: chg,
+            volume, amplitude, pe, pb,
+            name: parts[1] || code,
+          };
         }
       } catch (e) {
         console.warn('Batch fetch error:', e);
@@ -81,9 +104,25 @@ export default function App() {
     setLoading(false);
   }, [allCodes]);
 
-  // 初始加载时刷新一次
+  // 初始加载
   useEffect(() => {
     fetchPrices();
+  }, []);
+
+  // 点击节点处理
+  const handleNodeClick = useCallback((node) => {
+    setSelectedNode(node);
+    setDetailHistory([]);
+  }, []);
+
+  // 从环节详情点击公司（进入二级）
+  const handleSelectStock = useCallback(({ code, name, linkName }) => {
+    setDetailHistory(prev => [...prev, { code, name, linkName }]);
+  }, []);
+
+  // 二级返回
+  const handleBack = useCallback(() => {
+    setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
   return (
@@ -111,6 +150,8 @@ export default function App() {
             colorMetric={colorMetric}
             labelMode={labelMode}
             onTooltip={setTooltip}
+            onNodeClick={handleNodeClick}
+            selectedNode={selectedNode}
           />
           {tooltip && (
             <Tooltip
@@ -120,6 +161,16 @@ export default function App() {
           )}
         </div>
       </div>
+      <DetailPanel
+        selectedNode={selectedNode}
+        stockPrices={stockPrices}
+        stockIndustry={{}}
+        industryName={currentIndustry}
+        onClose={() => { setSelectedNode(null); setDetailHistory([]); }}
+        onSelectStock={handleSelectStock}
+        onBack={handleBack}
+        history={detailHistory}
+      />
     </div>
   );
 }

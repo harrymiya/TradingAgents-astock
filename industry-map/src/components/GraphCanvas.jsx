@@ -38,7 +38,7 @@ function getColor(value, metric) {
 // 环节节点颜色（固定方案）
 const LINK_COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#db2777', '#4f46e5'];
 
-export default function GraphCanvas({ industry, industryData, stockPrices, colorMetric, labelMode, onTooltip }) {
+export default function GraphCanvas({ industry, industryData, stockPrices, colorMetric, labelMode, onTooltip, onNodeClick, selectedNode }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -83,6 +83,11 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
         desc: linkData['描述'],
         color: linkColorMap[linkName],
         r: 22 + linkData['壁垒'] * 4,
+        // 携带该环节的所有股票代码和名称
+        stocks: linkData['股票'].map(c => ({
+          code: c,
+          name: (stockPrices[c] && stockPrices[c].name) || c,
+        })),
       };
       nodes.push(linkNode);
       nodeMap[linkNode.id] = nodeIdx;
@@ -236,7 +241,7 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
       .attr('pointer-events', 'none');
 
     // ---- 交互 ----
-    // Tooltip
+    // Tooltip - 鼠标悬停
     nodeG.on('mouseenter', function(event, d) {
       const rect = container.getBoundingClientRect();
       onTooltip({
@@ -249,6 +254,33 @@ export default function GraphCanvas({ industry, industryData, stockPrices, color
     nodeG.on('mouseleave', () => {
       // 延迟关闭让用户有时间移动到tooltip
     });
+
+    // 点击节点 → 右侧详情栏
+    nodeG.on('click', function(event, d) {
+      event.stopPropagation();
+      if (onNodeClick) {
+        onNodeClick(d);
+      }
+    });
+
+    // 点击空白取消选中
+    svg.on('click', () => {
+      if (onNodeClick) onNodeClick(null);
+    });
+
+    // 选中节点高亮
+    if (selectedNode) {
+      nodeG.attr('opacity', d => {
+        if (d.id === selectedNode.id) return 1;
+        // 同类型节点半透明，突出选中
+        if (selectedNode.type === 'link' && d.linkName === selectedNode.linkName) return 1;
+        if (selectedNode.type === 'stock' && d.type === 'stock') return 0.4;
+        if (selectedNode.type === 'link' && d.type === 'stock' && d.linkName === selectedNode.name) return 1;
+        return 0.3;
+      });
+    } else {
+      nodeG.attr('opacity', 1);
+    }
 
     // 点击可固定节点（拖拽后保持位置）
     nodeG.call(d3.drag()

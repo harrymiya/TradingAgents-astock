@@ -3,29 +3,30 @@
   align-items: center;
   gap: 10px;
   padding: 10px 20px;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  background: #0d1117;
+  border-bottom: 1px solid #21262d;
   flex-wrap: wrap;
   flex-shrink: 0;
 }
 
 .controls label {
-  color: #8b949e;
-  font-size: 13px;
+  color: #6e7681;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .controls select {
-  background: #21262d;
+  background: #161b22;
   color: #c9d1d9;
   border: 1px solid #30363d;
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 13px;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
   cursor: pointer;
+  outline: none;
 }
 
 .controls select:focus {
-  outline: none;
   border-color: #58a6ff;
 }
 
@@ -33,11 +34,12 @@
   background: #238636;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 6px 16px;
+  border-radius: 6px;
+  padding: 5px 14px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   transition: background 0.15s;
+  font-weight: 500;
 }
 
 .refresh-btn:hover:not(:disabled) {
@@ -45,34 +47,35 @@
 }
 
 .refresh-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .legend {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-left: auto;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 11px;
-  color: #8b949e;
+  color: #6e7681;
 }
 
 .legend-color {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .update-time {
   font-size: 11px;
-  color: #6e7681;
+  color: #484f58;
   white-space: nowrap;
+  margin-left: 4px;
 }
