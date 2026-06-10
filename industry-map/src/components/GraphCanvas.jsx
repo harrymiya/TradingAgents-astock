@@ -315,31 +315,44 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
       queue.push(name);
     }
   }
-  if (queue.length === 0) {
-    level[linkNames[0]] = 0;
-    queue.push(linkNames[0]);
-  }
 
-  const visited = new Set(Object.keys(level));
-  while (queue.length > 0) {
-    const next = [];
-    for (const name of queue) {
-      const cur = level[name];
-      for (const down of (links_data[name]['下游'] || [])) {
-        if (links_data[down] && !visited.has(down)) {
-          level[down] = cur + 1;
-          visited.add(down);
-          next.push(down);
+  // 检查是否有任何上下游关系
+  const hasAnyUpstream = linkNames.some(name => (links_data[name]['上游'] || []).length > 0);
+  const hasAnyDownstream = linkNames.some(name => (links_data[name]['下游'] || []).length > 0);
+  const hasAnyRelation = hasAnyUpstream || hasAnyDownstream;
+
+  if (!hasAnyRelation) {
+    // 完全没有上下游关系：每个环节横向展开，各自一列
+    linkNames.forEach((name, idx) => {
+      level[name] = idx;
+    });
+  } else {
+    if (queue.length === 0) {
+      level[linkNames[0]] = 0;
+      queue.push(linkNames[0]);
+    }
+
+    const visited = new Set(Object.keys(level));
+    while (queue.length > 0) {
+      const next = [];
+      for (const name of queue) {
+        const cur = level[name];
+        for (const down of (links_data[name]['下游'] || [])) {
+          if (links_data[down] && !visited.has(down)) {
+            level[down] = cur + 1;
+            visited.add(down);
+            next.push(down);
+          }
         }
       }
+      queue = next;
     }
-    queue = next;
-  }
-  const maxLvl = Math.max(...Object.values(level), 0);
-  for (const name of linkNames) {
-    if (!visited.has(name)) {
-      level[name] = maxLvl + 1;
-      visited.add(name);
+    const maxLvl = Math.max(...Object.values(level), 0);
+    for (const name of linkNames) {
+      if (!visited.has(name)) {
+        level[name] = maxLvl + 1;
+        visited.add(name);
+      }
     }
   }
 
