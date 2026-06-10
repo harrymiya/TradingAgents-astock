@@ -281,9 +281,11 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
 let svgRefCache = null;
 
 // ============================================================
-// 模式2：横向流水线图（上下游列式布局）
-//  每个环节节点在上方（带标题+描述），下方竖排列出该环节的股票
-//  每个环节占一列，列宽自适应，整体居中
+// 模式2：横向产业链布局 — 每level一列，同列垂直排列
+//  从左到右：level 0（上游）→ level max（下游）
+//  每列宽度固定200px，列间距20px
+//  同一列的环节垂直堆叠，按stockCount降序排列
+//  列间连线用水平线+箭头
 // ============================================================
 function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
   try {
@@ -341,7 +343,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
     }
   }
 
-  // --- 2. 按层级分组（每个level一列） ---
+  // --- 2. 按层级分组 ---
   const levelGroups = {};
   for (const [name, lvl] of Object.entries(level)) {
     if (!levelGroups[lvl]) levelGroups[lvl] = [];
@@ -349,220 +351,234 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   }
   const sortedLevels = Object.keys(levelGroups).sort((a, b) => Number(a) - Number(b));
 
-  // --- 3. 每个环节展开为一列 ---
-  // 把levelGroups展开为「每一列=1个环节」的扁平列表
-  // 同时保留level序号做列背景色交替
+  // --- 3. 布局参数 ---
+  const COL_W = 200;            // 每列宽度
+  const COL_GAP = 20;           // 列间距
+  const PADDING_TOP = 70;       // 顶部标签+间距
+  const PADDING_BOTTOM = 30;    // 底部间距
+  const PADDING_LEFT = 20;      // 左侧边距
+  const PADDING_RIGHT = 20;     // 右侧边距
+  const LINK_RADIUS = 22;       // 环节圆基础半径
+  const LINK_SECTION_H = 40;    // 环节圆+名称区域高度
+  const STOCK_H = 20;           // 每个股票行高（含间距）
+  const BETWEEN_LINK_H = 16;    // 不同环节之间的垂直间距
+  const LINK_LABEL_Y = 60;      // 环节名称在圆下方的y偏移（相对环节顶部）
 
-  // 环节展开：一个环节 = 一列（含环节标题+股票列表）
-  // 同一level（同层）的环节依次排列
-  const columns = []; // [{name, level, links_data[name], stocks: []}]
+  // layout宽度
+  const layoutW = sortedLevels.length * COL_W + (sortedLevels.length - 1) * COL_GAP;
+  const centerOffsetX = Math.max(0, (width - layoutW) / 2);
+
+  // --- 4. 计算每一列的高度（根据该level所有环节的stock总数）---
+  // 每列：环节圆+名称 + 每个环节的股票列
+  // 为每个level计算列高度，取所有环节中的最大值
+  const levelColH = {};
   for (const lvl of sortedLevels) {
-    for (const name of levelGroups[lvl]) {
-      columns.push({
-        name: name,
-        level: Number(lvl),
-        data: links_data[name],
-        stocks: links_data[name]['股票'],
-      });
+    const names = levelGroups[lvl];
+    let maxH = 0;
+    for (const name of names) {
+      const nStocks = links_data[name]['股票'].length;
+      const h = LINK_SECTION_H + nStocks * STOCK_H + BETWEEN_LINK_H;
+      if (h > maxH) maxH = h;
     }
+    // 列内总高度 = 所有环节高度之和 + 环节间间距
+    let totalH = 0;
+    const sortedNames = [...names].sort((a, b) =>
+      (links_data[b]['股票'].length) - (links_data[a]['股票'].length)
+    );
+    for (let i = 0; i < sortedNames.length; i++) {
+      const name = sortedNames[i];
+      const nStocks = links_data[name]['股票'].length;
+      totalH += LINK_SECTION_H + nStocks * STOCK_H;
+      if (i < sortedNames.length - 1) totalH += BETWEEN_LINK_H;
+    }
+    levelColH[lvl] = totalH;
   }
 
-  // --- 4. 列宽计算 ---
-  // 列宽取决于该环节最多的股票数 + 环节标题的行高
-  const STOCK_H = 24;       // 每个股票行高
-  const SECTION_H = 80;     // 环节标题区域高度（圆+名称+家数）
-  const COL_PAD = 20;       // 列内左右padding
-  const COL_GAP = 16;       // 列间距
-  const HEADER_H = 50;      // 顶部列标签高
-  const MARGIN_T = HEADER_H + 10;
-  const MARGIN_B = 30;
+  // 找出最高列的高度，决定viewport高度
+  const maxColH = Math.max(...Object.values(levelColH), 0);
+  const viewH = Math.max(height || 800, maxColH + PADDING_TOP + PADDING_BOTTOM);
+  const viewW = Math.max(width || 1200, layoutW + PADDING_LEFT + PADDING_RIGHT);
+  const offsetY = Math.max(0, (viewH - maxColH - PADDING_TOP - PADDING_BOTTOM) / 2) + PADDING_TOP;
 
-  // 基础列宽（显示6个字+涨跌幅+代码）
-  const textWidth = 140;
-
-  // 列高 = HEADER_H + 环节区域
-  let maxColH = 0;
-  const colHeights = columns.map(col => {
-    const h = MARGIN_T + SECTION_H + col.stocks.length * STOCK_H + MARGIN_B;
-    maxColH = Math.max(maxColH, h);
-    return h;
-  });
-
-  // 内容总高度 = 顶部标签区 + 环节标题 + 股票列表 + 底部间距
-  const contentH = maxColH + 40;
-  // viewport高度 = 容器高度（不低于内容高度，如果有剩余空间则居中）
-  const viewH = Math.max(height || 800, contentH);
-  // 垂直偏移：内容在viewH中居中
-  const offsetY = (viewH - contentH) / 2;
-
-  // 列宽 = 每个股票项宽度（名称~7字+涨跌幅~6字+代码~6字=~19字*9px=~171px，加padding）
-  // 用固定宽度200px
-  const COL_W = 200;
-  const totalW = columns.length * (COL_W + COL_GAP) - COL_GAP + COL_PAD * 2;
-
-  // 计算整体水平偏移：居中
-  const usableW = Math.max(width || 1200, totalW);
-  const offsetX = (usableW - totalW) / 2;
-
-  svg.attr('viewBox', `0 0 ${usableW} ${viewH}`)
+  svg.attr('viewBox', `0 0 ${viewW} ${viewH}`)
      .style('width', '100%').style('height', '100%');
 
   // --- 5. 构建节点坐标 ---
   const nodes = [];
   const links = [];
 
-  for (let ci = 0; ci < columns.length; ci++) {
-    const col = columns[ci];
-    const x = offsetX + COL_PAD + ci * (COL_W + COL_GAP);
+  // 列内环节排序：按stockCount降序（多的在上面）
+  const levelSortedGroups = {};
+  for (const [lvl, names] of Object.entries(levelGroups)) {
+    levelSortedGroups[lvl] = [...names].sort((a, b) =>
+      (links_data[b]['股票'].length) - (links_data[a]['股票'].length)
+    );
+  }
 
-    // 环节标题节点
-    const color = linkColorMap[col.name];
-    const linkNodeId = 'link_' + col.name;
-    const linkY = offsetY + MARGIN_T + SECTION_H / 2;
+  // 为每个level计算列水平x中心位置
+  const levelX = {};
+  sortedLevels.forEach((lvl, idx) => {
+    levelX[lvl] = centerOffsetX + PADDING_LEFT + idx * (COL_W + COL_GAP) + COL_W / 2;
+  });
 
-    const linkNode = {
-      id: linkNodeId,
-      name: col.name,
-      type: 'link',
-      code: null,
-      barrier: col.data['壁垒'],
-      localRate: col.data['国产化率'],
-      stockCount: col.stocks.length,
-      upstream: col.data['上游'] || [],
-      downstream: col.data['下游'] || [],
-      desc: col.data['描述'],
-      color: color,
-      r: 22,
-      x: x + COL_W / 2,
-      y: linkY,
-      stocks: col.stocks.map(c => ({
-        code: c,
-        name: (stockPrices[c] && stockPrices[c].name) || c,
-      })),
-    };
-    nodes.push(linkNode);
+  // 遍历每个level（列），构建节点
+  for (const lvl of sortedLevels) {
+    const names = levelSortedGroups[lvl];
+    const lvlNum = Number(lvl);
+    const colCenterX = levelX[lvl];
+    const colLeft = colCenterX - COL_W / 2 + 10; // 股票文字左对齐起始x
 
-    // 股票节点
-    let sy = offsetY + MARGIN_T + SECTION_H + 4;
-    for (const code of col.stocks) {
-      const price = stockPrices[code] || {};
-      const feat = (featData && featData[code]) || {};
+    let yPos = offsetY; // 本列当前y位置（从上往下）
 
-      let metricVal, colorMin, colorMax;
-      switch (colorMetric) {
-        case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; break;
-        case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; break;
-        case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; break;
-        case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; break;
-        case 'rsi': metricVal = feat.rsi !== undefined ? feat.rsi : 0; colorMin = -2; colorMax = 2; break;
-        case 's3_score': metricVal = feat.s3_score !== undefined ? feat.s3_score : 50; colorMin = 0; colorMax = 100; break;
-        case 'composite': metricVal = feat.composite !== undefined ? feat.composite : 50; colorMin = 0; colorMax = 100; break;
-        case 'pos_20d': metricVal = feat.pos_20d !== undefined ? feat.pos_20d : 50; colorMin = 0; colorMax = 100; break;
-        case 'ma20_pct': metricVal = feat.ma20_pct !== undefined ? feat.ma20_pct : 0; colorMin = -20; colorMax = 20; break;
-        default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10;
-      }
+    for (const name of names) {
+      const barrier = links_data[name]['壁垒'] || 0;
+      const r = LINK_RADIUS + barrier * 4;
+      const color = linkColorMap[name];
+      const linkNodeId = 'link_' + name;
+      const nStocks = links_data[name]['股票'].length;
+      const sectionH = LINK_SECTION_H + nStocks * STOCK_H;
 
-      let fillColor;
-      if (colorMetric === 'rsi') fillColor = valueToColor(metricVal, -2, 2);
-      else if (colorMetric === 'composite' || colorMetric === 's3_score') fillColor = valueToColor(metricVal, 0, 100);
-      else fillColor = valueToColor(metricVal, colorMin, colorMax);
+      // --- 环节节点（圆在列内居中） ---
+      const cx = colCenterX;
+      const cy = yPos + r + 2; // 圆在环节区域顶部
 
-      // 股票名称
-      const nameStr = price.name || code;
-      const codeShort = code.length >= 6 ? code.slice(-6) : code;
-
-      const stockNode = {
-        id: code,
-        name: nameStr,
-        code: codeShort,
-        codeFull: code,
-        type: 'stock',
-        price: price.price || 0,
-        chg: price.chg || 0,
-        yearChg: price.yearChg || 0,
-        volume: price.volume || 0,
-        amplitude: price.amplitude || 0,
-        linkName: col.name,
-        linkColor: color,
-        r: 5,
-        fillColor: fillColor,
-        x: x + COL_W / 2,
-        y: sy + STOCK_H / 2,
-        chgStr: (price.chg >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%',
-        feat: feat,
+      const linkNode = {
+        id: linkNodeId,
+        name: name,
+        type: 'link',
+        code: null,
+        barrier: barrier,
+        localRate: links_data[name]['国产化率'],
+        stockCount: nStocks,
+        upstream: links_data[name]['上游'] || [],
+        downstream: links_data[name]['下游'] || [],
+        desc: links_data[name]['描述'],
+        color: color,
+        r: r,
+        x: cx,
+        y: cy,
+        level: lvlNum,
+        stocks: links_data[name]['股票'].map(c => ({
+          code: c,
+          name: (stockPrices[c] && stockPrices[c].name) || c,
+        })),
       };
-      nodes.push(stockNode);
-      links.push({ source: code, target: linkNodeId });
-      sy += STOCK_H;
-    }
+      nodes.push(linkNode);
 
-    // 环节间上游箭头
-    for (const up of (col.data['上游'] || [])) {
-      if (linkNames.includes(up)) {
-        links.push({ source: 'link_' + up, target: linkNodeId, type: 'flow' });
+      // --- 环节名称（圆的下方） ---
+      // 名称文字位置
+      const nameY = cy + r + 14;
+
+      // --- 股票节点 — 在环节圆下方竖排列出 ---
+      let sy = nameY + 4;
+      for (const code of links_data[name]['股票']) {
+        const price = stockPrices[code] || {};
+        const feat = (featData && featData[code]) || {};
+
+        let metricVal, colorMin, colorMax;
+        switch (colorMetric) {
+          case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; break;
+          case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; break;
+          case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; break;
+          case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; break;
+          case 'rsi': metricVal = feat.rsi !== undefined ? feat.rsi : 0; colorMin = -2; colorMax = 2; break;
+          case 's3_score': metricVal = feat.s3_score !== undefined ? feat.s3_score : 50; colorMin = 0; colorMax = 100; break;
+          case 'composite': metricVal = feat.composite !== undefined ? feat.composite : 50; colorMin = 0; colorMax = 100; break;
+          case 'pos_20d': metricVal = feat.pos_20d !== undefined ? feat.pos_20d : 50; colorMin = 0; colorMax = 100; break;
+          case 'ma20_pct': metricVal = feat.ma20_pct !== undefined ? feat.ma20_pct : 0; colorMin = -20; colorMax = 20; break;
+          default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10;
+        }
+
+        let fillColor;
+        if (colorMetric === 'rsi') fillColor = valueToColor(metricVal, -2, 2);
+        else if (colorMetric === 'composite' || colorMetric === 's3_score') fillColor = valueToColor(metricVal, 0, 100);
+        else fillColor = valueToColor(metricVal, colorMin, colorMax);
+
+        const nameStr = price.name || code;
+        const codeShort = code.length >= 6 ? code.slice(-6) : code;
+
+        const stockNode = {
+          id: code,
+          name: nameStr,
+          code: codeShort,
+          codeFull: code,
+          type: 'stock',
+          price: price.price || 0,
+          chg: price.chg || 0,
+          yearChg: price.yearChg || 0,
+          volume: price.volume || 0,
+          amplitude: price.amplitude || 0,
+          linkName: name,
+          linkColor: color,
+          r: 4,
+          fillColor: fillColor,
+          x: colLeft + 6,
+          y: sy + STOCK_H / 2,
+          chgStr: (price.chg >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%',
+          feat: feat,
+          level: lvlNum,
+        };
+        nodes.push(stockNode);
+        links.push({ source: code, target: linkNodeId });
+        sy += STOCK_H;
       }
+
+      // 环节间flow连线
+      for (const up of (links_data[name]['上游'] || [])) {
+        if (linkNames.includes(up)) {
+          links.push({ source: 'link_' + up, target: linkNodeId, type: 'flow' });
+        }
+      }
+
+      yPos += sectionH + BETWEEN_LINK_H;
     }
   }
 
   // --- 6. 绘制 ---
   const g = svg.append('g');
 
-  // 缩放 + 拖拽平移（鼠标左键按住拖动；Ctrl+滚轮缩放）
+  // 缩放 + 拖拽平移
   const zoom = d3.zoom()
     .scaleExtent([0.3, 5])
     .filter(event => !event.target.closest('.h-node'))
     .on('zoom', (event) => { g.attr('transform', event.transform); });
   svg.call(zoom);
 
-  // 列背景
-  for (let ci = 0; ci < columns.length; ci++) {
-    const x = offsetX + COL_PAD + ci * (COL_W + COL_GAP);
+  // --- 列背景（按level奇偶交替） ---
+  for (const lvl of sortedLevels) {
+    const lvlNum = Number(lvl);
+    const cx = levelX[lvl];
+    const colTop = offsetY - 10;
+    const colH = (levelColH[lvl] || 0) + 20;
     g.append('rect')
-      .attr('x', x).attr('y', offsetY).attr('width', COL_W).attr('height', contentH)
-      .attr('fill', columns[ci].level % 2 === 0 ? '#161b22' : '#0d1117')
-      .attr('opacity', 0.25);
+      .attr('x', cx - COL_W / 2).attr('y', colTop)
+      .attr('width', COL_W).attr('height', colH)
+      .attr('fill', lvlNum % 2 === 0 ? '#161b22' : '#0d1117')
+      .attr('rx', 6).attr('ry', 6)
+      .attr('opacity', 0.3);
   }
 
-  // 顶部列标签
-  for (let ci = 0; ci < columns.length; ci++) {
-    const x = offsetX + COL_PAD + ci * (COL_W + COL_GAP);
-    const lvl = columns[ci].level;
-    const positions = ['上游', '中上游', '中游', '中下游', '下游'];
-    const label = positions[Math.min(lvl, 4)];
+  // --- 顶部标签（上游级 / 中游级 / 下游级） ---
+  const positions = ['上游', '中上游', '中游', '中下游', '下游', '终端'];
+  for (const lvl of sortedLevels) {
+    const lvlNum = Number(lvl);
+    const cx = levelX[lvl];
+    const label = positions[Math.min(lvlNum, 5)];
 
     g.append('text')
-      .attr('x', x + COL_W / 2).attr('y', offsetY + 16)
+      .attr('x', cx).attr('y', offsetY - 24)
       .attr('text-anchor', 'middle').attr('fill', '#58a6ff')
-      .attr('font-size', 11).attr('font-weight', 600)
+      .attr('font-size', 12).attr('font-weight', 700)
       .text(label + '级');
 
-    // 列分隔线
-    if (ci < columns.length - 1) {
-      g.append('line')
-        .attr('x1', x + COL_W + COL_GAP / 2).attr('y1', offsetY + 0)
-        .attr('x2', x + COL_W + COL_GAP / 2).attr('y2', offsetY + contentH)
-        .attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
-    }
+    // 列顶分隔线
+    g.append('line')
+      .attr('x1', cx - COL_W / 2 + 4).attr('y1', offsetY - 16)
+      .attr('x2', cx + COL_W / 2 - 4).attr('y2', offsetY - 16)
+      .attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
   }
 
-  // 列标题行（环节名称）
-  for (let ci = 0; ci < columns.length; ci++) {
-    const x = offsetX + COL_PAD + ci * (COL_W + COL_GAP);
-    g.append('text')
-      .attr('x', x + COL_W / 2).attr('y', offsetY + HEADER_H - 10)
-      .attr('text-anchor', 'middle').attr('fill', '#e6edf3')
-      .attr('font-size', 12).attr('font-weight', 600)
-      .text(columns[ci].name.length > 8 ? columns[ci].name.slice(0, 8) + '..' : columns[ci].name);
-
-    // 家数统计小字
-    g.append('text')
-      .attr('x', x + COL_W / 2).attr('y', offsetY + HEADER_H + 4)
-      .attr('text-anchor', 'middle').attr('fill', '#6e7681')
-      .attr('font-size', 10)
-      .text(columns[ci].stocks.length + '家');
-  }
-
-  // 箭头定义
+  // --- 箭头定义 ---
   const defs = svg.append('defs');
   defs.append('marker')
     .attr('id', 'harrow')
@@ -570,28 +586,39 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
     .attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
     .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
 
-  // 环节间上下游箭头
+  // --- 连线（环节间flow连线） ---
   for (const link of links) {
     if (link.type !== 'flow') continue;
     const srcNode = nodes.find(n => n.id === link.source);
     const tgtNode = nodes.find(n => n.id === link.target);
     if (!srcNode || !tgtNode) continue;
 
-    // 水平箭头（两个不同列的环节之间）
-    const srcX = srcNode.x + srcNode.r;
-    const tgtX = tgtNode.x - tgtNode.r;
+    const srcX = srcNode.x;
+    const srcY = srcNode.y;
+    const tgtX = tgtNode.x;
+    const tgtY = tgtNode.y;
+
+    // 水平线（从源列右边缘到目标列左边缘，带箭头）
+    // 从源圆右边缘开始，到目标圆左边缘结束
+    const sr = srcNode.r || LINK_RADIUS;
+    const tr = tgtNode.r || LINK_RADIUS;
+    const startX = srcX + sr;
+    const endX = tgtX - tr;
+
     g.append('line')
-      .attr('x1', srcX).attr('y1', srcNode.y)
-      .attr('x2', tgtX).attr('y2', tgtNode.y)
+      .attr('x1', startX).attr('y1', srcY)
+      .attr('x2', endX).attr('y2', tgtY)
+      .attr('fill', 'none')
       .attr('stroke', '#58a6ff').attr('stroke-width', 1.5)
-      .attr('stroke-opacity', 0.35).attr('marker-end', 'url(#harrow)');
+      .attr('stroke-opacity', 0.5)
+      .attr('marker-end', 'url(#harrow)');
   }
 
-  // 节点组
+  // --- 节点组 ---
   const nodeG = g.append('g').selectAll('.h-node')
     .data(nodes).join('g').attr('class', 'h-node').style('cursor', 'pointer');
 
-  // 环节圆
+  // 环节圆（双圈效果）
   nodeG.filter(d => d.type === 'link').append('circle')
     .attr('cx', d => d.x).attr('cy', d => d.y)
     .attr('r', d => d.r).attr('fill', d => d.color)
@@ -602,14 +629,14 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
     .attr('r', d => d.r + 4).attr('fill', 'none').attr('stroke', d => d.color)
     .attr('stroke-width', d => 1 + (d.barrier || 0) * 0.5).attr('stroke-opacity', 0.3);
 
-  // 环节圆内文字（环节简称）
+  // 环节名称（在圆下方）
   nodeG.filter(d => d.type === 'link').append('text')
-    .attr('x', d => d.x).attr('y', d => d.y + 4)
+    .attr('x', d => d.x).attr('y', d => d.y + d.r + 14)
     .attr('text-anchor', 'middle').attr('fill', '#e6edf3')
-    .attr('font-size', 9).attr('font-weight', 600).attr('pointer-events', 'none')
-    .text(d => d.name.length > 3 ? d.name.slice(0, 3) : d.name);
+    .attr('font-size', 11).attr('font-weight', 600).attr('pointer-events', 'none')
+    .text(d => d.name.length > 8 ? d.name.slice(0, 8) + '..' : d.name);
 
-  // 股票圆点
+  // 股票圆点（在列内左对齐）
   nodeG.filter(d => d.type === 'stock').append('circle')
     .attr('cx', d => d.x).attr('cy', d => d.y)
     .attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e')
@@ -618,23 +645,22 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
 
   // 股票名称（圆点右侧）
   nodeG.filter(d => d.type === 'stock').append('text')
-    .attr('x', d => d.x + 10).attr('y', d => d.y + 3)
-    .attr('fill', '#c9d1d9').attr('font-size', 10)
+    .attr('x', d => d.x + 8).attr('y', d => d.y + 3)
+    .attr('fill', '#c9d1d9').attr('font-size', 9)
     .attr('pointer-events', 'auto')
-    .text(d => d.name);
+    .text(d => d.name.length > 6 ? d.name.slice(0, 6) + '..' : d.name);
 
   // 涨跌幅/指标值
   nodeG.filter(d => d.type === 'stock').append('text')
-    .attr('x', d => d.x + 100).attr('y', d => d.y + 3)
+    .attr('x', d => d.x + 82).attr('y', d => d.y + 3)
     .attr('fill', d => {
       if (colorMetric === 'chg' || colorMetric === 'yearChg') {
         return d.chg >= 0 ? '#ff6b6b' : '#51cf66';
       }
       return '#ffb320';
     })
-    .attr('font-size', 9).attr('pointer-events', 'auto')
+    .attr('font-size', 8).attr('pointer-events', 'auto')
     .text(d => {
-      // 根据colorMetric显示对应数值
       switch(colorMetric) {
         case 'chg': return d.chgStr;
         case 'yearChg': return (d.yearChg >= 0 ? '+' : '') + (d.yearChg || 0).toFixed(1) + '%';
@@ -653,20 +679,19 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
       }
     });
 
-  // 代码（灰色小字，涨跌幅右侧）
+  // 代码
   nodeG.filter(d => d.type === 'stock').append('text')
-    .attr('x', d => d.x + 142).attr('y', d => d.y + 3)
-    .attr('fill', '#6e7681').attr('font-size', 9)
+    .attr('x', d => d.x + 124).attr('y', d => d.y + 3)
+    .attr('fill', '#6e7681').attr('font-size', 8)
     .attr('pointer-events', 'auto')
     .text(d => d.code);
 
-  // 交互
+  // --- 交互 ---
   nodeG.on('mouseenter', function(event, d) {
     const rect = svgRefCache.getBoundingClientRect();
     onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top });
   });
   nodeG.on('mouseleave', (event, d) => {
-    // 鼠标移出节点，清tooltip
     if (onTooltip) onTooltip(null);
   });
   nodeG.on('click', function(event, d) {
@@ -675,29 +700,26 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   });
   svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
 
-  // 选中高亮：选中stock节点加蓝色矩形外框包围整行（横向模式用全局坐标）
+  // --- 选中高亮 ---
   if (selectedNode) {
-    // 先移除旧的选中框
     nodeG.selectAll('.sel-box').remove();
-    // 给选中节点加矩形框
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
       if (d.type === 'stock') {
-        const bw = 205, bh = 20;
+        const bw = 155, bh = 16;
         group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
-          .attr('x', d.x - 8).attr('y', d.y - 10)
+          .attr('x', d.x - 6).attr('y', d.y - 8)
           .attr('width', bw).attr('height', bh)
           .attr('fill', 'none')
           .attr('stroke', '#58a6ff')
           .attr('stroke-width', 1.5)
           .attr('rx', 4).attr('ry', 4);
       } else {
-        // 环节节点用蓝色矩形框
         group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
-          .attr('x', d.x - (d.r || 22) - 8).attr('y', d.y - (d.r || 22) - 8)
-          .attr('width', (d.r || 22) * 2 + 16).attr('height', (d.r || 22) * 2 + 16)
+          .attr('x', d.x - (d.r || LINK_RADIUS) - 8).attr('y', d.y - (d.r || LINK_RADIUS) - 8)
+          .attr('width', (d.r || LINK_RADIUS) * 2 + 16).attr('height', (d.r || LINK_RADIUS) * 2 + 16)
           .attr('fill', 'none')
           .attr('stroke', '#58a6ff')
           .attr('stroke-width', 1.5)
@@ -707,8 +729,8 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   } else {
     nodeG.selectAll('.sel-box').remove();
   }
-} catch(e) { 
-  console.error('buildHorizontalGraph error:', e.message, e.stack); 
+} catch(e) {
+  console.error('buildHorizontalGraph error:', e.message, e.stack);
   var errDiv = document.createElement('div');
   errDiv.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f00;color:#fff;padding:8px;z-index:9999;font-size:12px';
   errDiv.textContent = 'Horizontal Error: ' + e.message;
