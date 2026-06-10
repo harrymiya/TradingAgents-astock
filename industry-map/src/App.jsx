@@ -54,6 +54,47 @@ function getIndustryCodes(data, industryName) {
 
 const codeToIndustry = buildCodeToIndustryMap(industryData);
 
+/** 批量拉腾讯API实时行情 */
+async function batchFetchQtCodes(codes) {
+  if (!codes || codes.length === 0) return {};
+  const results = {};
+  for (let i = 0; i < codes.length; i += BATCH_SIZE) {
+    const batch = codes.slice(i, i + BATCH_SIZE);
+    const qtCodes = batch.map(c => (c.startsWith('6') ? 'sh' : 'sz') + c);
+    try {
+      const resp = await fetch(`${API_BASE}${qtCodes.join(',')}&_=${Date.now()}`);
+      const buf = await resp.arrayBuffer();
+      const decoder = new TextDecoder('gb18030');
+      const text = decoder.decode(buf);
+      for (const line of text.split(';')) {
+        if (!line.trim() || !line.includes('~')) continue;
+        const parts = line.split('~');
+        const rawCode = parts[0] || '';
+        const codeMatch = rawCode.match(/(\d{6})/);
+        const code = codeMatch ? codeMatch[1] : rawCode;
+        if (!code) continue;
+        const price = parseFloat(parts[3]) || 0;
+        const chg = parseFloat(parts[32]) || 0;
+        const yearChg = parseFloat(parts[69]) || 0;
+        const volume = parseInt(parts[6]) || 0;
+        const high = parseFloat(parts[33]) || 0;
+        const low = parseFloat(parts[34]) || 0;
+        const amplitude = high && low ? ((high - low) / low * 100) : 0;
+        const pe = parseFloat(parts[39]) || 0;
+        const pb = parseFloat(parts[48]) || 0;
+        results[code] = {
+          price, chg, yearChg, monthChg: chg,
+          volume, amplitude, pe, pb,
+          name: parts[1] || code,
+        };
+      }
+    } catch (e) {
+      console.warn('Batch fetch error:', e);
+    }
+  }
+  return results;
+}
+
 export default function App() {
   const init = getInitParams();
   const [currentIndustry, setCurrentIndustry] = useState(init.industry);
@@ -63,70 +104,46 @@ export default function App() {
   const [tooltip, setTooltip] = useState(null);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString('zh-CN'));
+  // 刷新计数器：每次刷新+1，传给子组件触发重拉
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [selectedNode, setSelectedNode] = useState(null);
   const [detailHistory, setDetailHistory] = useState([]);
   const [screeningInfo, setScreeningInfo] = useState(null);
-  // 选股互动：选中的代码 + 该代码所有产业链列表
   const [screeningCode, setScreeningCode] = useState(null);
   const [availableChains, setAvailableChains] = useState([]);
 
   const graphRef = useRef(null);
   const autoRefreshRef = useRef(null);
 
-  const fetchPrices = useCallback(async () => {
-    const codes = getIndustryCodes(industryData, currentIndustry);
-    if (codes.length === 0) return;
-
-    setLoading(true);
-    const results = {};
-
-    for (let i = 0; i < codes.length; i += BATCH_SIZE) {
-      const batch = codes.slice(i, i + BATCH_SIZE);
-      const qtCodes = batch.map(c => (c.startsWith('6') ? 'sh' : 'sz') + c);
-      const url = `${API_BASE}${qtCodes.join(',')}&_=${Date.now()}`;
-
-      try {
-        const resp = await fetch(url);
-        const buf = await resp.arrayBuffer();
-        const decoder = new TextDecoder('gb18030');
-        const text = decoder.decode(buf);
-        for (const line of text.split(';')) {
-          if (!line.trim() || !line.includes('~')) continue;
-          const parts = line.split('~');
-          const rawCode = parts[0] || '';
-          const codeMatch = rawCode.match(/(\d{6})/);
-          const code = codeMatch ? codeMatch[1] : rawCode;
-          if (!code) continue;
-          const price = parseFloat(parts[3]) || 0;
-          const chg = parseFloat(parts[32]) || 0;
-          const yearChg = parseFloat(parts[69]) || 0;
-          const volume = parseInt(parts[6]) || 0;
-          const high = parseFloat(parts[33]) || 0;
-          const low = parseFloat(parts[34]) || 0;
-          const amplitude = high && low ? ((high - low) / low * 100) : 0;
-          const pe = parseFloat(parts[39]) || 0;
-          const pb = parseFloat(parts[48]) || 0;
-          results[code] = {
-            price, chg, yearChg, monthChg: chg,
-            volume, amplitude, pe, pb,
-            name: parts[1] || code,
-          };
-        }
-      } catch (e) {
-        console.warn('Batch fetch error:', e);
-      }
-    }
-
-    setStockPrices(prev => ({ ...prev, ...results }));
-    setLastUpdate(new Date().toLocaleTimeString('zh-CN'));
-    setLoading(false);
+  // 搜集当前需要拉取的所有股票代码
+  const getQryCodes = useCallback(() => {
+    const indCodes = currentIndustry ? getIndustryCodes(industryData, currentIndustry) : [];
+    return [...new Set([...indCodes])];
   }, [currentIndustry]);
 
+  const fetchPrices = useCallback(async () => {
+    const codes = getQryCodes();
+    if (codes.length === 0) {
+      setLastUpdate(new Date().toLocaleTimeString('zh-CN'));
+      setRefreshKey(k => k + 1);
+      return;
+    }
+
+    setLoading(true);
+    const results = await batchFetchQtCodes(codes);
+    setStockPrices(prev => ({ ...prev, ...results }));
+    setLastUpdate(new Date().toLocaleTimeString('zh-CN'));
+    setRefreshKey(k => k + 1);
+    setLoading(false);
+  }, [getQryCodes]);
+
+  // 首次加载 + 切换产业链时拉数据
   useEffect(() => {
     fetchPrices();
   }, [currentIndustry, fetchPrices]);
 
+  // 30秒自动刷新
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPrices();
@@ -150,7 +167,6 @@ export default function App() {
     setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
-  // 选股结果点击：跳转产业链+选中（不切sidebar tab）
   const handleSelectScreening = useCallback((item) => {
     const code = item.code;
     const chains = codeToIndustry[code] || [];
@@ -166,7 +182,6 @@ export default function App() {
         chg: item.chg, close: item.close,
       });
     } else {
-      // 无匹配产业链 → 清空画布
       setCurrentIndustry(null);
       setSelectedNode(null);
       setScreeningInfo(null);
@@ -174,10 +189,8 @@ export default function App() {
     setDetailHistory([]);
   }, []);
 
-  // 下拉框切换产业链
   const handleSwitchIndustry = useCallback((newIndustry) => {
     setCurrentIndustry(newIndustry);
-    // 保留selectedNode和screeningInfo，不重置
   }, []);
 
   const hasIndustry = currentIndustry && industryData[currentIndustry] && industryData[currentIndustry]['环节'];
@@ -190,6 +203,7 @@ export default function App() {
         onSelect={setCurrentIndustry}
         onSelectScreening={handleSelectScreening}
         selectedCode={screeningCode}
+        refreshKey={refreshKey}
       />
       <div className="main">
         <Controls

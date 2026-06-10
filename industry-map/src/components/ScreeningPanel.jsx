@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './ScreeningPanel.css';
 
 const API_URL = '/api/screening';
@@ -64,13 +64,32 @@ function AnalysisInfo({ analysisResult, analysisError, analyzing }) {
   return null;
 }
 
-export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
+export default function ScreeningPanel({ onSelectScreening, selectedCode, refreshKey }) {
   const [activeStrategy, setActiveStrategy] = useState(null);
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
   // 异步分析状态
   const [analysisState, setAnalysisState] = useState({});  // { code: { analyzing, result, error } }
+
+  // refreshKey变化时，重拉当前策略的实时行情
+  useEffect(() => {
+    if (!activeStrategy || !results[activeStrategy]) return;
+    const data = results[activeStrategy];
+    const codes = (data.results || []).map(r => r.code);
+    if (codes.length === 0) return;
+    
+    const updatePrices = async () => {
+      const realTime = await fetchRealTimePrices(codes);
+      const merged = (data.results || []).map(r => {
+        const rt = realTime[r.code];
+        if (rt) return { ...r, chg: rt.chg, close: rt.price };
+        return r;
+      });
+      setResults(prev => ({ ...prev, [activeStrategy]: { ...data, results: merged } }));
+    };
+    updatePrices();
+  }, [refreshKey]);
 
   const runStrategy = useCallback(async (strategy) => {
     setActiveStrategy(strategy);
