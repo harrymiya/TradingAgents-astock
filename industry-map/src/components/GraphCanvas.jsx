@@ -15,8 +15,8 @@ function valueToColor(value, minVal = -10, maxVal = 10) {
   }
 }
 
-// 环节节点颜色（固定方案）
-const LINK_COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#db2777', '#4f46e5'];
+// 环节节点颜色（浅色调，不抢公司节点风头）
+const LINK_COLORS = ['#b79ad9', '#89abe8', '#7ec8e0', '#7fbf9f', '#dbb86d', '#e0877c', '#d99bb6', '#7e8fd6'];
 
 // ============================================================
 // 模式1：力导向图
@@ -154,8 +154,8 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
     .attr('stroke', d => d.color).attr('stroke-width', d => 1 + d.barrier * 0.5).attr('stroke-opacity', 0.3);
 
   nodeG.filter(d => d.type === 'stock').append('circle')
-    .attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e').attr('fill-opacity', 0.85)
-    .attr('stroke', d => d.fillColor || '#8b949e').attr('stroke-width', 1.5).attr('stroke-opacity', 0.5);
+    .attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e').attr('fill-opacity', 1.0)
+    .attr('stroke', d => d.fillColor || '#8b949e').attr('stroke-width', 2.5).attr('stroke-opacity', 0.8);
 
   nodeG.filter(d => d.type === 'link').append('text')
     .attr('dy', 4).attr('text-anchor', 'middle').attr('fill', '#e6edf3')
@@ -653,8 +653,8 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   nodeG.filter(d => d.type === 'stock').append('circle')
     .attr('cx', d => d.x).attr('cy', d => d.y)
     .attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e')
-    .attr('fill-opacity', 0.85).attr('stroke', d => d.fillColor || '#8b949e')
-    .attr('stroke-width', 1.5);
+    .attr('fill-opacity', 1.0).attr('stroke', d => d.fillColor || '#8b949e')
+    .attr('stroke-width', 2.5);
 
   // 股票名称（圆点右侧）
   nodeG.filter(d => d.type === 'stock').append('text')
