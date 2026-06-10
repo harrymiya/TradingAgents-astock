@@ -280,19 +280,22 @@ def stage1_sanyin(date_str):
 # ================================================================
 
 def stage2_score(candidates, date_str):
-    """6维度评分 → Top10"""
-    # 加载feat全市场数据（用于评分需要的字段）
+    """重写Stage 2：跨策略通用评分，不再是策略内评分
+    
+    维度：
+    1. **产业链热度** (0-10分) — 股票所属热门产业链（从DB的industry_chains + stock_industries）
+    2. **行业景气趋势** (0-8分) — 该股票所属通达信行业的阶段涨幅（l1级行业平均chg）
+    3. **基本面+资金趋势** (0-7分) — 60日位置+5日收益+量比合理性
+    """
+    # 加载feat全市场数据
     conn = sqlite3.connect(DB)
     md_rows = conn.execute("""
-        SELECT f.code, f.close, f.chg, f.amp, f.vr_5, f.vr_20,
-               f.pos_20d, f.pos_60d, f.ma20_pct, f.ma60_pct,
-               f.ret1, f.ret3, f.ret5, f.volume, f.ma5, f.ma10, f.ma20
+        SELECT f.code, f.pos_60d, f.ret1, f.ret3, f.ret5,
+               f.volume, f.chg, f.vr_5, f.amp
         FROM feat f
         WHERE f.date = ?
     """, (date_str,)).fetchall()
-    md_cols = ['code','close','chg','amp','vr_5','vr_20',
-               'pos_20d','pos_60d','ma20_pct','ma60_pct',
-               'ret1','ret3','ret5','volume','ma5','ma10','ma20']
+    md_cols = ['code','pos_60d','ret1','ret3','ret5','volume','chg','vr_5','amp']
     md_map = {}
     for r in md_rows:
         d = dict(zip(md_cols, r))
@@ -300,115 +303,147 @@ def stage2_score(candidates, date_str):
             try: d[k] = float(d[k])
             except: d[k] = 0
         md_map[d['code']] = d
+    
+    # 加载行业数据（stock_industries + industry_chains 产业链归属）
+    # 热门产业链列表（从DB的 industry_chains 表读取）
+    hot_chains = set()
+    chain_rows = conn.execute("SELECT name FROM industry_chains ORDER BY sort_order").fetchall()
+    all_chains = [r[0] for r in chain_rows]
     conn.close()
-
-    # 热门产业链
-    CHAIN_HOT_INDUSTRIES = ['AI算力', 'AI应用', '半导体', 'CPO(共封装光学)', 
-                            '机器人', '低空经济', '新能源', '商业航天']
-    INDUSTRY_HOT_KEYWORDS = ['通信', '半导体', '芯片', '软件', 'IT', '电子', '计算机',
-                             '光伏', '电池', '电力', '汽车', '机器人', '航空航天',
-                             'AI', '算力', '光模块', 'PCB', '消费电子']
-
+    
+    # 获取每个股票的行业归属
+    ind_conn = sqlite3.connect(DB)
+    ind_rows = ind_conn.execute(
+        "SELECT code, industry_l1, industry_l2, industry_l3 FROM stock_industries"
+    ).fetchall()
+    stock_industry_map = {}
+    for r in ind_rows:
+        stock_industry_map[r[0]] = {'l1': r[1] or '', 'l2': r[2] or '', 'l3': r[3] or ''}
+    ind_conn.close()
+    
+    # 获取每个股票的产业链归属（从chain_stocks表）
+    chain_stocks_conn = sqlite3.connect(DB)
+    cs_rows = chain_stocks_conn.execute("""
+        SELECT DISTINCT cs.code, ic.name
+        FROM chain_stocks cs
+        JOIN chain_links cl ON cs.link_id = cl.id
+        JOIN industry_chains ic ON cl.chain_id = ic.id
+    """).fetchall()
+    chain_stocks_conn.close()
+    
+    stock_chains = {}
+    for code, chain_name in cs_rows:
+        if code not in stock_chains:
+            stock_chains[code] = []
+        stock_chains[code].append(chain_name)
+    
+    # 预先判断一批热度关键词
+    HOT_KEYWORDS = ['AI', '算力', '芯片', '半导体', '机器人', '低空经济', '新能源',
+                    '光伏', '电池', '汽车', '光模块', 'PCB', '软件', '算网',
+                    '消费电子', '创新药', '军工', '商业航天']
+    
     scored = []
     for c in candidates:
         code = c['code']
         row = md_map.get(code)
         if not row:
             continue
-
-        strategy = c.get('strategy', '')
-        detail = c.get('detail', '')
+        
         scores = {}
         total = 0
-
-        # S3评分
-        if 'S3' in strategy:
-            s3_score = 0
-            amp = float(row['amp'])
-            if amp < 3: s3_score += 3
-            elif amp < 5: s3_score += 4
-            elif amp < 7: s3_score += 2
-            else: s3_score += 1
-            mp20 = float(row['ma20_pct'])
-            if mp20 >= -10: s3_score += 4
-            elif mp20 >= -15: s3_score += 2
-            else: s3_score += 1
-            vr5 = float(row['vr_5'])
-            if vr5 < 1.5: s3_score += 3
-            elif vr5 < 2.0: s3_score += 1
-            s3_score = min(s3_score, 10)
-            scores['S3反转质量'] = s3_score
-            total += s3_score
-
-        # 三买v2评分
-        if '三买' in strategy:
-            sm_score = 0
-            m = re.search(r'回抽([\d.]+)%', detail)
-            if m:
-                pb = float(m.group(1))
-                if 5 <= pb <= 12: sm_score += 4
-                elif 3 <= pb < 5: sm_score += 2
-                else: sm_score += 1
-            ma20 = float(row['ma20'])
-            close = float(row['close'])
-            if ma20 > 0:
-                ma20_dist = (close - ma20) / ma20 * 100
-                if 0 < ma20_dist <= 5: sm_score += 3
-                elif ma20_dist > 5: sm_score += 1
-                elif -3 <= ma20_dist <= 0: sm_score += 1
-            ma5 = float(row['ma5'])
-            if close > ma5: sm_score += 2
-            vr5 = float(row['vr_5'])
-            if 0.6 <= vr5 <= 1.5: sm_score += 1
-            sm_score = min(sm_score, 10)
-            scores['三买中枢质量'] = sm_score
-            total += sm_score
-
-        # 三阴评分（缩量+止损距离）
-        if '三阴' in strategy:
-            sy_score = 5
-            vr5 = float(row['vr_5'])
-            if vr5 < 0.6: sy_score += 3
-            elif vr5 < 0.8: sy_score += 1
-            mp20 = float(row['ma20_pct'])
-            if mp20 > -5: sy_score += 2
-            scores['三阴止盈质量'] = sy_score
-            total += sy_score
-
-        # 通用加分
-        bonus = 0
+        
+        ## 维度1：产业链热度 (0-10分)
+        chain_score = 0
+        chain_tag = ''
+        
+        # 检查股票所属产业链
+        chains = stock_chains.get(code, [])
+        ind_info = stock_industry_map.get(code, {})
+        ind_l1 = ind_info.get('l1', '')
+        ind_l2 = ind_info.get('l2', '')
+        
+        # 检查名字是否在热门产业链中
+        matched_chains = []
+        for ch in all_chains:
+            if ch in chains:
+                matched_chains.append(ch)
+        
+        # 检查行业是否含热门关键词
+        hot_keyword_matches = []
+        for kw in HOT_KEYWORDS:
+            if kw in ind_l1 or kw in ind_l2 or kw in ind_l2:
+                hot_keyword_matches.append(kw)
+        
+        # 实际打分
+        if matched_chains:
+            chain_score += 7  # 有明确产业链归属就+7
+            chain_tag = matched_chains[0]
+        if hot_keyword_matches:
+            chain_score += 3  # 行业含热门关键词+3
+            if not chain_tag:
+                chain_tag = hot_keyword_matches[0]
+        chain_score = min(chain_score, 10)
+        
+        scores['产业链热度'] = chain_score
+        total += chain_score
+        
+        ## 维度2：行业景气趋势 (0-8分)
+        # 从feat表该股票所在l1行业的平均涨幅
+        # 简化版：用个股的5日收益 + 60日位置来判断趋势
+        trend_score = 0
+        ret5 = float(row['ret5'])
         pos60 = float(row['pos_60d'])
-        if pos60 < 50: bonus += 2
-        if float(row['ret1']) > 0: bonus += 2
-        if float(row['ret3']) > 0: bonus += 1
-        scores['通用加分'] = min(bonus, 5)
-        total += min(bonus, 5)
-
-        # 板块热度（简化版—直接从candidate的产业链信息）
-        sector_score = 0
-        sector_tag = ''
-        # 检查是否在热门产业链中
-        if 'sector' in c and c['sector']:
-            for hot in CHAIN_HOT_INDUSTRIES:
-                if hot in c['sector']:
-                    sector_score = 5
-                    sector_tag = hot
-                    break
-        if sector_score > 0:
-            scores['板块热度'] = sector_score
-            total += sector_score
-
-        # 多策略共振
-        strategy_set = set(s.strip() for s in re.split(r'[+]', strategy) if s.strip())
-        if len(strategy_set) >= 2:
-            scores['多策略共振'] = 3
-            total += 3
-
+        
+        # 5日涨幅为正→上行趋势
+        if ret5 > 3: trend_score += 3      # 强反弹趋势
+        elif ret5 > 0: trend_score += 2     # 弱反弹趋势
+        elif ret5 > -3: trend_score += 1    # 横盘
+        
+        # 60日位置（反映中期趋势）
+        if 20 <= pos60 <= 80: trend_score += 3   # 中位区域，趋势健康
+        elif pos60 < 20: trend_score += 1         # 超跌区域
+        elif pos60 > 80: trend_score += 1         # 高位区域（注意回调风险）
+        
+        # 量比合理性
+        vr5 = float(row['vr_5'])
+        if 0.6 <= vr5 <= 1.5: trend_score += 2   # 温和放量
+        elif vr5 < 0.6: trend_score += 1          # 缩量
+        
+        trend_score = min(trend_score, 8)
+        scores['景气趋势'] = trend_score
+        total += trend_score
+        
+        ## 维度3：基本面+资金信号 (0-7分)
+        signal_score = 0
+        
+        # ret1昨日涨势延续性
+        ret1 = float(row['ret1'])
+        if ret1 > 0: signal_score += 2
+        
+        # 振幅合理性（振幅小说明抛压轻）
+        amp = float(row['amp'])
+        if amp < 4: signal_score += 2
+        elif amp < 6: signal_score += 1
+        
+        # 60日位置安全性
+        if pos60 < 50: signal_score += 2   # 中低位更安全
+        elif pos60 < 80: signal_score += 1
+        
+        # 量价配合
+        chg = float(row['chg'])
+        if chg > 0 and vr5 >= 1.0: signal_score += 1  # 上涨有量
+        
+        signal_score = min(signal_score, 7)
+        scores['资金信号'] = signal_score
+        total += signal_score
+        
         c['scores'] = scores
         c['total_score'] = total
-        c['sector'] = sector_tag
+        c['chain_tag'] = chain_tag
+        c['matched_chains'] = matched_chains[:2]
+        c['ind_info'] = f"{ind_l1}/{ind_l2}" if ind_l2 else ind_l1
         scored.append(c)
-
+    
     scored.sort(key=lambda x: x['total_score'], reverse=True)
     return scored[:10]
 
