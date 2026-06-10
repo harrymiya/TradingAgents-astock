@@ -118,6 +118,7 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
   // 缩放 + 拖拽平移（鼠标左键按住拖动）
   const zoom = d3.zoom()
     .scaleExtent([0.3, 4])
+    .filter(event => !event.target.closest('.h-node'))
     .on('zoom', (event) => { g.attr('transform', event.transform); });
   svg.call(zoom);
 
@@ -490,6 +491,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   // 缩放 + 拖拽平移（鼠标左键按住拖动；Ctrl+滚轮缩放）
   const zoom = d3.zoom()
     .scaleExtent([0.3, 5])
+    .filter(event => !event.target.closest('.h-node'))
     .on('zoom', (event) => { g.attr('transform', event.transform); });
   svg.call(zoom);
 
@@ -598,6 +600,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   // 股票名称（圆点右侧）
   nodeG.filter(d => d.type === 'stock').append('text')
     .attr('x', d => d.x + 10).attr('y', d => d.y + 3)
+    .attr('fill', '#c9d1d9').attr('font-size', 10)
     .attr('pointer-events', 'auto')
     .text(d => d.name);
 
@@ -661,7 +664,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
       if (d.type === 'stock') {
-        const bw = 150, bh = 20;
+        const bw = 205, bh = 20;
         group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
           .attr('x', d.x - 8).attr('y', d.y - 10)
