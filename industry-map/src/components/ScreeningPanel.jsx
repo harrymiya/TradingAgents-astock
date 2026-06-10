@@ -131,11 +131,11 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
     setAnalysisState(prev => ({ ...prev, [code]: { analyzing: true, result: null, error: null } }));
 
     try {
-      // 提交分析任务
-      const resp = await fetch(API_URL, {
+      // 提交分析任务 — 走独立端点 /api/analyze_stock
+      const resp = await fetch('/api/analyze_stock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'analyze_stock', code }),
+        body: JSON.stringify({ code }),
       });
       const data = await resp.json();
 

@@ -23,6 +23,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/analyze/, '/analyze'),
       },
+      '/api/kline': {
+        target: 'http://localhost:8788',
+        changeOrigin: true,
+      },
     },
   },
   build: {

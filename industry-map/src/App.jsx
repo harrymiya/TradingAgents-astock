@@ -6,6 +6,7 @@ import Tooltip from './components/Tooltip';
 import DetailPanel from './components/DetailPanel';
 import RevealPanel from './components/RevealPanel';
 import IndustrySwitcher from './components/IndustrySwitcher';
+import KlinePanel from './components/KlinePanel';
 import industryData from './data/industry_data.json';
 import priceData from './data/price_data.json';
 import featData from './data/feat_data.json';
@@ -113,6 +114,9 @@ export default function App() {
   const [screeningCode, setScreeningCode] = useState(null);
   const [availableChains, setAvailableChains] = useState([]);
 
+  // K线面板状态：选中公司时显示日K线
+  const [klineStock, setKlineStock] = useState(null); // { code, name }
+
   const graphRef = useRef(null);
   const autoRefreshRef = useRef(null);
 
@@ -148,10 +152,18 @@ export default function App() {
     setDetailHistory([]);
     setScreeningInfo(null);
     setTooltip(null);
+    // 如果是公司节点，显示K线
+    if (node.type === 'stock' && node.code) {
+      setKlineStock({ code: node.code, name: node.name || node.code });
+    } else {
+      setKlineStock(null);
+    }
   }, []);
 
   const handleSelectStock = useCallback(({ code, name, linkName }) => {
     setDetailHistory(prev => [...prev, { code, name, linkName }]);
+    // 选中的公司也显示K线
+    setKlineStock({ code, name: name || code });
   }, []);
 
   const handleBack = useCallback(() => {
@@ -163,6 +175,7 @@ export default function App() {
     const chains = codeToIndustry[code] || [];
     setScreeningCode(code);
     setAvailableChains(chains);
+    setKlineStock({ code, name: item.name || code });
 
     if (chains.length > 0) {
       setCurrentIndustry(chains[0]);
@@ -234,12 +247,20 @@ export default function App() {
           )}
         </div>
       </div>
+      {/* K线面板：点击公司/环节的股票时显示在底部 */}
+      {klineStock && (
+        <KlinePanel
+          code={klineStock.code}
+          name={klineStock.name}
+          onClose={() => setKlineStock(null)}
+        />
+      )}
       <DetailPanel
         selectedNode={selectedNode}
         stockPrices={stockPrices}
         stockIndustry={{}}
         industryName={currentIndustry}
-        onClose={() => { setSelectedNode(null); setDetailHistory([]); setScreeningInfo(null); setScreeningCode(null); setAvailableChains([]); }}
+        onClose={() => { setSelectedNode(null); setDetailHistory([]); setScreeningInfo(null); setScreeningCode(null); setAvailableChains([]); setKlineStock(null); }}
         onSelectStock={handleSelectStock}
         onBack={handleBack}
         history={detailHistory}

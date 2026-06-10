@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """screening_server.py — 轻量选股HTTP服务 + 异步个股分析"""
-import json, os, sys, time, threading, uuid
+import json, os, sys, time, threading, uuid, re, sqlite3
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import screening_api
+
+DB = os.path.expanduser("~/.hermes/astock_data.db")
 
 # 异步分析任务存储
 _analysis_tasks = {}
@@ -139,9 +141,39 @@ class Handler(BaseHTTPRequestHandler):
                 'cached_codes': list(_ANALYSIS_CACHE.keys())
             })
         
+        elif path == '/api/kline':
+            code = (params.get('code') or [None])[0]
+            days = int((params.get('days') or [120])[0])
+            
+            self._send_cors()
+            
+            if not code or not re.match(r'^\d{6}$', code):
+                self._respond({'error': 'Invalid code'})
+                return
+            
+            try:
+                conn = sqlite3.connect(DB)
+                rows = conn.execute(
+                    "SELECT date, open, high, low, close, volume, amount "
+                    "FROM daily_klines WHERE code = ? ORDER BY date DESC LIMIT ?",
+                    (code, days)
+                ).fetchall()
+                conn.close()
+                
+                klines = [{
+                    'date': r[0],
+                    'open': r[1], 'high': r[2], 'low': r[3], 'close': r[4],
+                    'volume': r[5], 'amount': r[6]
+                } for r in reversed(rows)]
+                
+                self._respond({'code': code, 'count': len(klines), 'klines': klines})
+            except Exception as e:
+                self._respond({'error': str(e)})
+        
         else:
             self.send_response(404)
-            self.end_headers()
+            self._send_cors()
+            self._respond({'error': 'Not found'})
     
     def do_POST(self):
         path = self.path.rstrip('/')
