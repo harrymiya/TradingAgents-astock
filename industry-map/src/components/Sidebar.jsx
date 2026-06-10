@@ -75,12 +75,23 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
     for (const [name, info] of Object.entries(industries)) {
       if (name.startsWith('_')) continue;
       let stocks = 0;
-      const linksCount = Object.keys(info['环节']).length;
-      for (const l of Object.values(info['环节'])) {
+      const linksObj = info['环节'] || {};
+      const linksCount = Object.keys(linksObj).length;
+      for (const l of Object.values(linksObj)) {
         stocks += l['股票'].length;
       }
+      // 完整度评分
+      let score = 0;
+      score += Math.min(linksCount * 5, 25);
+      score += Math.min(Object.values(linksObj).filter(l => l['描述']).length * 5, 20);
+      score += Math.min(Object.values(linksObj).filter(l => l['壁垒']).length * 3, 10);
+      score += Math.min(Object.values(linksObj).filter(l => l['上游'] && l['上游'].length).length * 3, 15);
+      score += Math.min(Object.values(linksObj).filter(l => l['下游'] && l['下游'].length).length * 3, 15);
+      score += Math.min(stocks / 3, 15);
+      score = Math.min(Math.round(score), 100);
+      
       const heatInfo = industryHeat[name] || { avgChg: 0 };
-      list.push({ name, links: linksCount, stocks, avgChg: heatInfo.avgChg });
+      list.push({ name, links: linksCount, stocks, avgChg: heatInfo.avgChg, completeness: score });
     }
     list.sort((a, b) => b.avgChg - a.avgChg);
     return list;
@@ -115,19 +126,21 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
       {activeTab === 'industry' && (
         <>
           <div className="industry-list">
-            {heatSorted.map(({ name, stocks, avgChg }) => (
+            {heatSorted.map(({ name, stocks, avgChg, completeness }) => (
               <button
-                key={name}
-                className={`industry-btn ${name === current ? 'active' : ''}`}
-                onClick={() => onSelect(name)}
-                title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label}`}
-              >
-                <span className="heat-dot" style={{ background: getHeatDot(avgChg).color }}></span>
-                <span className="btn-name">{name}</span>
-                <span className="heat-chg" style={{
-                  color: avgChg > 0 ? '#ff6b6b' : avgChg < 0 ? '#51cf66' : '#8b949e'
-                }}>{avgChg > 0 ? '+' : ''}{avgChg.toFixed(1)}%</span>
-                <span className="badge">{stocks}家</span>
+                  key={name}
+                  className={`industry-btn ${name === current ? 'active' : ''}`}
+                  title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label} | 完整度${completeness}%`}
+                >
+                  <span className="heat-dot" style={{ background: getHeatDot(avgChg).color }}></span>
+                  <span className="btn-name">{name}</span>
+                  <span className="heat-chg" style={{
+                    color: avgChg > 0 ? '#ff6b6b' : avgChg < 0 ? '#51cf66' : '#8b949e'
+                  }}>{avgChg > 0 ? '+' : ''}{avgChg.toFixed(1)}%</span>
+                  <span className={`completeness ${completeness >= 70 ? 'high' : completeness >= 40 ? 'mid' : 'low'}`}>
+                    {completeness}%
+                  </span>
+                  <span className="badge">{stocks}家</span>
               </button>
             ))}
           </div>

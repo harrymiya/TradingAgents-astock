@@ -92,14 +92,34 @@
 }
 
 .industry-btn .badge {
-  margin-left: auto;
-  background: #161b22;
-  color: #6e7681;
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: 8px;
-  flex-shrink: 0;
-}
+  .badge {
+    font-size: 10px;
+    color: #6e7681;
+    background: #161b22;
+    padding: 1px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .completeness {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+  .completeness.high {
+    color: #3fb950;
+    background: #002d1b;
+  }
+  .completeness.mid {
+    color: #d29922;
+    background: #1d1a00;
+  }
+  .completeness.low {
+    color: #8b949e;
+    background: #161b22;
+  }
 
 .industry-btn.active .badge {
   background: #0d1117;
