@@ -73,13 +73,13 @@
 }
 
 .industry-btn:hover {
-  background: #161b22;
+  background: #21262d;
   color: #c9d1d9;
 }
 
 .industry-btn.active {
-  background: #1a253b;
-  color: #58a6ff;
+  background: #1f6feb;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -173,7 +173,7 @@
 }
 
 .sidebar-tab.active {
-  color: #58a6ff;
+  color: #ffffff;
   font-weight: 600;
-  background: #1a253b;
+  background: #1f6feb;
 }
