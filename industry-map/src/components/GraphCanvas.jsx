@@ -163,13 +163,13 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
 
   nodeG.filter(d => d.type === 'stock').append('text')
     .attr('dx', d => d.r + 5).attr('dy', 4).attr('fill', '#c9d1d9')
-    .attr('font-size', 10).attr('pointer-events', 'none')
+    .attr('font-size', 10).attr('pointer-events', 'auto')
     .text(d => d.name);
 
   // 指标值标签（仅force模式用简短显示）
   nodeG.filter(d => d.type === 'stock').append('text')
     .attr('dx', d => d.r + 5).attr('dy', 16).attr('fill', '#8b949e')
-    .attr('font-size', 8).attr('pointer-events', 'none')
+    .attr('font-size', 8).attr('pointer-events', 'auto')
     .text(d => {
       if (d.chg !== 0) return d.chgStr;
       return '';
@@ -202,7 +202,7 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
       if (d.type === 'stock') {
-        const bw = 185, bh = 20;
+        const bw = 205, bh = 20;
         group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
           .attr('x', -8).attr('y', -10)
@@ -598,8 +598,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   // 股票名称（圆点右侧）
   nodeG.filter(d => d.type === 'stock').append('text')
     .attr('x', d => d.x + 10).attr('y', d => d.y + 3)
-    .attr('fill', '#c9d1d9').attr('font-size', 10)
-    .attr('pointer-events', 'none')
+    .attr('pointer-events', 'auto')
     .text(d => d.name);
 
   // 涨跌幅/指标值
@@ -609,9 +608,9 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
       if (colorMetric === 'chg' || colorMetric === 'yearChg') {
         return d.chg >= 0 ? '#ff6b6b' : '#51cf66';
       }
-      return '#ffb320';  // 其他指标用橙色
+      return '#ffb320';
     })
-    .attr('font-size', 9).attr('pointer-events', 'none')
+    .attr('font-size', 9).attr('pointer-events', 'auto')
     .text(d => {
       // 根据colorMetric显示对应数值
       switch(colorMetric) {
@@ -636,7 +635,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   nodeG.filter(d => d.type === 'stock').append('text')
     .attr('x', d => d.x + 142).attr('y', d => d.y + 3)
     .attr('fill', '#6e7681').attr('font-size', 9)
-    .attr('pointer-events', 'none')
+    .attr('pointer-events', 'auto')
     .text(d => d.code);
 
   // 交互
