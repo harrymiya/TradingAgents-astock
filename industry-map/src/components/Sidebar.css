@@ -157,19 +157,19 @@
 .sidebar-tab {
   flex: 1;
   padding: 6px 0;
-  background: transparent;
+  background: #0d1117;
   border: none;
   border-radius: 4px 4px 0 0;
-  color: #6e7681;
+  color: #8b949e;
   cursor: pointer;
   font-size: 12px;
   text-align: center;
-  transition: all 0.12s;
+  transition: all 0.15s;
 }
 
 .sidebar-tab:hover {
   color: #c9d1d9;
-  background: #161b22;
+  background: #21262d;
 }
 
 .sidebar-tab.active {

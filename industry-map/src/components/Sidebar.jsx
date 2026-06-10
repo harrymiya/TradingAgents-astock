@@ -131,6 +131,7 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
                   key={name}
                   className={`industry-btn ${name === current ? 'active' : ''}`}
                   title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label} | 完整度${completeness}%`}
+                  onClick={() => onSelect(name)}
                 >
                   <span className="heat-dot" style={{ background: getHeatDot(avgChg).color }}></span>
                   <span className="btn-name">{name}</span>
