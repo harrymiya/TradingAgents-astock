@@ -143,15 +143,6 @@ export default function App() {
     fetchPrices();
   }, [currentIndustry, fetchPrices]);
 
-  // 30秒自动刷新
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchPrices();
-    }, 30000);
-    autoRefreshRef.current = interval;
-    return () => clearInterval(interval);
-  }, [fetchPrices]);
-
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
     setDetailHistory([]);
