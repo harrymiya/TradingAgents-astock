@@ -4,9 +4,9 @@ import './KlinePanel.css';
 const API_URL = '/api/kline';
 
 /**
- * KlinePanel — 底部K线图组件
- * 根据选中公司代码拉取日线数据, 用纯SVG绘制
- * 支持60日/120日/250日切换, 鼠标悬停显示十字光标+Tooltip
+ * KlinePanel — 产业地图底部K线图组件
+ * 放在 graph-container 内部，可拖拽调整高度
+ * SVG铺满容器，支持60/120/250日切换、十字光标+Tooltip
  */
 export default function KlinePanel({ code, name, onClose }) {
   const [klines, setKlines] = useState([]);
@@ -14,15 +14,21 @@ export default function KlinePanel({ code, name, onClose }) {
   const [error, setError] = useState(null);
   const [days, setDays] = useState(120);
   const [hoverIdx, setHoverIdx] = useState(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const svgRef = useRef(null);
-  const [chartRect, setChartRect] = useState(null);
+  const panelRef = useRef(null);
+
+  // 拖拽状态
+  const [panelHeight, setPanelHeight] = useState(280);
+  const dragging = useRef(false);
+  const startY = useRef(0);
+  const startH = useRef(0);
 
   // 拉取K线数据
   useEffect(() => {
     if (!code) return;
     setLoading(true);
     setError(null);
+    setHoverIdx(null);
     fetch(`${API_URL}?code=${code}&days=${days}`)
       .then(r => r.json())
       .then(data => {
@@ -38,46 +44,75 @@ export default function KlinePanel({ code, name, onClose }) {
       .finally(() => setLoading(false));
   }, [code, days]);
 
+  // 拖拽事件处理
+  const handleDragStart = useCallback((e) => {
+    dragging.current = true;
+    startY.current = e.clientY || e.touches?.[0]?.clientY || 0;
+    startH.current = panelRef.current?.offsetHeight || 280;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleDragMove = (e) => {
+      if (!dragging.current) return;
+      const dy = (e.clientY || e.touches?.[0]?.clientY || 0) - startY.current;
+      const newH = Math.max(120, Math.min(window.innerHeight * 0.8, startH.current - dy));
+      setPanelHeight(newH);
+    };
+    const handleDragEnd = () => {
+      if (dragging.current) {
+        dragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    window.addEventListener('touchmove', handleDragMove, { passive: true });
+    window.addEventListener('touchend', handleDragEnd);
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleDragMove);
+      window.removeEventListener('touchend', handleDragEnd);
+    };
+  }, []);
+
   // 鼠标移动事件处理
   const handleMouseMove = useCallback((e) => {
     if (!svgRef.current || klines.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const svgWidth = rect.width;
+    const svgW = rect.width;
     const padL = 50, padR = 20;
-    const chartW = svgWidth - padL - padR;
+    const chartW = svgW - padL - padR;
     if (chartW <= 0) return;
     const idx = Math.round((x - padL) / chartW * (klines.length - 1));
-    const clampedIdx = Math.max(0, Math.min(klines.length - 1, idx));
-    setHoverIdx(clampedIdx);
-    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setChartRect(rect);
+    setHoverIdx(Math.max(0, Math.min(klines.length - 1, idx)));
   }, [klines]);
 
   const handleMouseLeave = useCallback(() => {
     setHoverIdx(null);
   }, []);
 
-  // 渲染SVG
+  // === SVG绘制 ===
   const renderSVG = () => {
     if (klines.length === 0) return null;
 
-    const W = 800;  // viewBox width
+    // 使用固定viewBox协调比例，实际铺满靠CSS
+    const W = 800;
     const H = 220;
     const padL = 50, padR = 20;
-    const kPadL = 50, kPadR = 20;
     const kTop = 5;
-    const kBot = 70;  // K线区域底部（留空间给成交量）
-    const vTop = 75;  // 成交量区域顶部
-    const vBot = 100; // 成交量区域底部
+    const kBot = 70;
+    const vTop = 75;
+    const vBot = 100;
     const chartW = W - padL - padR;
     const kH = kBot - kTop;
     const vH = vBot - vTop;
     const n = klines.length;
 
-    if (n === 0) return null;
-
-    // 计算K线极值
     let minLow = Infinity, maxHigh = -Infinity, maxVol = 0;
     for (const k of klines) {
       if (k.low < minLow) minLow = k.low;
@@ -86,11 +121,10 @@ export default function KlinePanel({ code, name, onClose }) {
     }
     const priceRange = maxHigh - minLow || 1;
     const volRange = maxVol || 1;
-
     const candleW = Math.max(3, Math.min(8, chartW / n * 0.7));
     const gap = chartW / n;
 
-    // 计算MA
+    // MA
     const calcMA = (period) => {
       const result = [];
       for (let i = 0; i < n; i++) {
@@ -108,100 +142,65 @@ export default function KlinePanel({ code, name, onClose }) {
     const yPrice = (val) => kTop + kH * (1 - (val - minLow) / priceRange);
     const yVol = (val) => vBot - vH * (val / volRange);
 
-    // 生成K线
-    const candles = [];
-    const volBars = [];
+    // K线
+    const elements = [];
     for (let i = 0; i < n; i++) {
       const k = klines[i];
       const x = padL + i * gap;
-      const openY = yPrice(k.open);
-      const closeY = yPrice(k.close);
-      const highY = yPrice(k.high);
-      const lowY = yPrice(k.low);
+      const oY = yPrice(k.open);
+      const cY = yPrice(k.close);
+      const hY = yPrice(k.high);
+      const lY = yPrice(k.low);
       const isUp = k.close >= k.open;
       const color = isUp ? '#f85149' : '#3fb950';
-
-      // 影线
-      candles.push(
-        <line key={`wick-${i}`} x1={x} y1={highY} x2={x} y2={lowY}
-          stroke={color} strokeWidth={1} />
-      );
-      // 实体
-      const bodyTop = Math.min(openY, closeY);
-      const bodyH = Math.max(Math.abs(closeY - openY), 1);
-      candles.push(
-        <rect key={`body-${i}`} x={x - candleW / 2} y={bodyTop}
-          width={candleW} height={bodyH} fill={color} />
-      );
-
-      // 成交量柱
-      volBars.push(
-        <rect key={`vol-${i}`} x={x - candleW / 2} y={yVol(k.volume)}
-          width={candleW} height={vBot - yVol(k.volume)}
-          fill={color} opacity={0.5} />
-      );
+      elements.push(<line key={`wick-${i}`} x1={x} y1={hY} x2={x} y2={lY} stroke={color} strokeWidth={1} />);
+      const bTop = Math.min(oY, cY);
+      const bH = Math.max(Math.abs(cY - oY), 1);
+      elements.push(<rect key={`body-${i}`} x={x - candleW / 2} y={bTop} width={candleW} height={bH} fill={color} />);
+      elements.push(<rect key={`vol-${i}`} x={x - candleW / 2} y={yVol(k.volume)} width={candleW} height={vBot - yVol(k.volume)} fill={color} opacity={0.4} />);
     }
 
-    // MA线路径
-    const makePath = (arr, color, className) => {
+    // MA paths
+    const makePath = (arr, cls) => {
       const pts = [];
       for (let i = 0; i < n; i++) {
         if (arr[i] === null) continue;
-        const x = padL + i * gap;
-        pts.push(`${i === 0 ? 'M' : 'L'}${x},${yPrice(arr[i])}`);
+        pts.push(`${i === 0 ? 'M' : 'L'}${padL + i * gap},${yPrice(arr[i])}`);
       }
-      if (pts.length === 0) return null;
-      return <path key={className} d={pts.join(' ')} className={className} />;
+      return pts.length ? <path d={pts.join(' ')} className={cls} /> : null;
     };
+    if (makePath(ma5, 'kline-ma5')) elements.push(makePath(ma5, 'kline-ma5'));
+    if (makePath(ma10, 'kline-ma10')) elements.push(makePath(ma10, 'kline-ma10'));
+    if (makePath(ma20, 'kline-ma20')) elements.push(makePath(ma20, 'kline-ma20'));
 
-    // Y轴刻度
-    const yTicks = [];
-    const yTickCount = 5;
-    for (let i = 0; i <= yTickCount; i++) {
-      const val = minLow + priceRange * (1 - i / yTickCount);
-      const y = kTop + kH * (i / yTickCount);
-      yTicks.push(
-        <g key={`ytick-${i}`}>
-          <line x1={padL - 5} y1={y} x2={W - padR} y2={y}
-            stroke="#21262d" strokeWidth={0.5} />
-          <text x={padL - 8} y={y + 3} textAnchor="end"
-            fill="#8b949e" fontSize={9}>{val.toFixed(2)}</text>
-        </g>
-      );
+    // Y ticks
+    for (let i = 0; i <= 5; i++) {
+      const val = minLow + priceRange * (1 - i / 5);
+      const y = kTop + kH * (i / 5);
+      elements.push(<line key={`ygl-${i}`} x1={padL - 5} y1={y} x2={W - padR} y2={y} stroke="#21262d" strokeWidth={0.5} />);
+      elements.push(<text key={`ygt-${i}`} x={padL - 8} y={y + 3} textAnchor="end" fill="#8b949e" fontSize={9}>{val.toFixed(2)}</text>);
     }
 
-    // X轴刻度（显示部分日期）
-    const xTicks = [];
-    const xTickCount = Math.min(8, n);
-    const step = Math.max(1, Math.floor(n / xTickCount));
-    for (let i = 0; i < n; i += step) {
+    // X ticks
+    const xCount = Math.min(8, n);
+    const xStep = Math.max(1, Math.floor(n / xCount));
+    for (let i = 0; i < n; i += xStep) {
       const x = padL + i * gap;
       const d = klines[i].date;
-      xTicks.push(
-        <g key={`xtick-${i}`}>
-          <line x1={x} y1={vBot + 2} x2={x} y2={vBot + 6}
-            stroke="#8b949e" strokeWidth={0.5} />
-          <text x={x} y={vBot + 16} textAnchor="middle"
-            fill="#8b949e" fontSize={9}>
-            {d ? d.slice(5) : ''}
-          </text>
-        </g>
-      );
+      elements.push(<line key={`xgl-${i}`} x1={x} y1={vBot + 2} x2={x} y2={vBot + 6} stroke="#8b949e" strokeWidth={0.5} />);
+      elements.push(<text key={`xgt-${i}`} x={x} y={vBot + 16} textAnchor="middle" fill="#8b949e" fontSize={9}>{d ? d.slice(5) : ''}</text>);
     }
 
-    // 十字光标
-    let crosshair = null;
-    if (hoverIdx !== null && chartRect) {
+    // Crosshair
+    if (hoverIdx !== null && klines[hoverIdx]) {
+      const k = klines[hoverIdx];
       const hx = padL + hoverIdx * gap;
-      const k2 = klines[hoverIdx];
-      const isUp2 = k2.close >= k2.open;
-      const hColor = isUp2 ? '#f85149' : '#3fb950';
-
-      crosshair = (
-        <g className="kline-crosshair">
-          <line x1={hx} y1={kTop} x2={hx} y2={vBot}
-            stroke="#8b949e" strokeWidth={1} strokeDasharray="3,3" />
-          <circle cx={hx} cy={yPrice(k2.close)} r={3} fill={hColor} />
+      const isUp = k.close >= k.open;
+      const hColor = isUp ? '#f85149' : '#3fb950';
+      elements.push(
+        <g key="crosshair" className="kline-crosshair">
+          <line x1={hx} y1={kTop} x2={hx} y2={vBot} stroke="#8b949e" strokeWidth={1} strokeDasharray="3,3" />
+          <circle cx={hx} cy={yPrice(k.close)} r={3} fill={hColor} />
         </g>
       );
     }
@@ -210,25 +209,7 @@ export default function KlinePanel({ code, name, onClose }) {
       <svg viewBox={`0 0 ${W} ${H}`} ref={svgRef}
         onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}
         style={{ cursor: hoverIdx !== null ? 'crosshair' : 'default' }}>
-        {/* 价格刻度 */}
-        {yTicks}
-
-        {/* K线 */}
-        {candles}
-
-        {/* 成交量 */}
-        {volBars}
-
-        {/* MA线 */}
-        {makePath(ma5, '#d29922', 'kline-ma5')}
-        {makePath(ma10, '#58a6ff', 'kline-ma10')}
-        {makePath(ma20, '#bc8cff', 'kline-ma20')}
-
-        {/* 日期刻度 */}
-        {xTicks}
-
-        {/* 十字光标 */}
-        {crosshair}
+        {elements}
       </svg>
     );
   };
@@ -250,15 +231,15 @@ export default function KlinePanel({ code, name, onClose }) {
     );
   };
 
-  // 显示MA图例
+  // MA图例
   const maLegend = () => {
     if (klines.length < 20) return null;
     const last = klines[klines.length - 1];
     return (
-      <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#8b949e', alignItems: 'center' }}>
-        <span><span style={{ color: '#d29922' }}>●</span> MA5</span>
-        <span><span style={{ color: '#58a6ff' }}>●</span> MA10</span>
-        <span><span style={{ color: '#bc8cff' }}>●</span> MA20</span>
+      <div className="kline-ma-legend">
+        <span><span style={{ color: '#d29922' }}>━</span> MA5</span>
+        <span><span style={{ color: '#58a6ff' }}>━</span> MA10</span>
+        <span><span style={{ color: '#bc8cff' }}>━</span> MA20</span>
         <span style={{ color: '#c9d1d9' }}>
           {last.date} C:{' '}
           <span style={{ color: last.close >= last.open ? '#f85149' : '#3fb950' }}>
@@ -269,15 +250,24 @@ export default function KlinePanel({ code, name, onClose }) {
     );
   };
 
+  const dragHandle = (
+    <div className="kline-drag-handle" onMouseDown={handleDragStart} onTouchStart={handleDragStart}>
+      <div className="kline-drag-dots">
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+  );
+
   if (!code) return null;
 
   return (
-    <div className="kline-panel">
+    <div className="kline-panel" ref={panelRef} style={{ height: panelHeight }}>
+      {dragHandle}
       <div className="kline-header">
         <div className="kline-title">
           <span className="kline-name">{name || code}</span>
           <span className="kline-code">{code}</span>
-          <span style={{ margin: '0 8px', color: '#30363d' }}>|</span>
+          <span className="kline-sep">|</span>
           日K线
         </div>
         <div className="kline-timeframe">

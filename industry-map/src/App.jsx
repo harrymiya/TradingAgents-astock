@@ -227,34 +227,36 @@ export default function App() {
               onSwitch={handleSwitchIndustry}
             />
           )}
-          {hasIndustry ? (
-            <GraphCanvas
-              layoutMode={layoutMode}
-              industry={currentIndustry}
-              industryData={industryData}
-              stockPrices={stockPrices}
-              featData={featData}
-              colorMetric={colorMetric}
-              onTooltip={setTooltip}
-              onNodeClick={handleNodeClick}
-              selectedNode={selectedNode}
+          <div className="graph-canvas-wrap">
+            {hasIndustry ? (
+              <GraphCanvas
+                layoutMode={layoutMode}
+                industry={currentIndustry}
+                industryData={industryData}
+                stockPrices={stockPrices}
+                featData={featData}
+                colorMetric={colorMetric}
+                onTooltip={setTooltip}
+                onNodeClick={handleNodeClick}
+                selectedNode={selectedNode}
+              />
+            ) : screeningCode ? (
+              <div className="no-industry-hint">该股票暂无匹配的产业链</div>
+            ) : null}
+            {tooltip && (
+              <Tooltip data={tooltip} onClose={() => setTooltip(null)} />
+            )}
+          </div>
+          {/* K线面板：点击公司/环节的股票时显示在拓扑图下方 */}
+          {klineStock && (
+            <KlinePanel
+              code={klineStock.code}
+              name={klineStock.name}
+              onClose={() => setKlineStock(null)}
             />
-          ) : screeningCode ? (
-            <div className="no-industry-hint">该股票暂无匹配的产业链</div>
-          ) : null}
-          {tooltip && (
-            <Tooltip data={tooltip} onClose={() => setTooltip(null)} />
           )}
         </div>
       </div>
-      {/* K线面板：点击公司/环节的股票时显示在底部 */}
-      {klineStock && (
-        <KlinePanel
-          code={klineStock.code}
-          name={klineStock.name}
-          onClose={() => setKlineStock(null)}
-        />
-      )}
       <DetailPanel
         selectedNode={selectedNode}
         stockPrices={stockPrices}

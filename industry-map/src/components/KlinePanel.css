@@ -2,34 +2,73 @@
   position: relative;
   background: #0d1117;
   border-top: 1px solid #30363d;
-  padding: 10px 16px 8px;
-  height: 290px;
+  padding: 0 16px 8px;
   flex-shrink: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+}
+
+/* 拖拽手柄 */
+.kline-drag-handle {
+  height: 10px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  margin: 0 -16px;
+  background: transparent;
+}
+.kline-drag-handle:hover {
+  background: rgba(48, 54, 61, 0.3);
+}
+.kline-drag-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.kline-drag-dots span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #484f58;
+}
+.kline-drag-handle:hover .kline-drag-dots span {
+  background: #8b949e;
 }
 
 .kline-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  flex-shrink: 0;
+  padding: 2px 0 4px;
 }
 
 .kline-title {
   font-size: 13px;
   color: #c9d1d9;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .kline-title .kline-code {
   color: #8b949e;
   font-weight: 400;
-  margin-left: 6px;
 }
 
 .kline-title .kline-name {
   color: #58a6ff;
-  margin-right: 4px;
+}
+
+.kline-sep {
+  color: #30363d;
 }
 
 .kline-close-btn {
@@ -44,35 +83,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .kline-close-btn:hover {
   color: #f85149;
   border-color: #f85149;
 }
 
-.kline-loading {
+.kline-loading,
+.kline-error {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 220px;
   color: #8b949e;
   font-size: 13px;
 }
-
 .kline-error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 220px;
   color: #f85149;
-  font-size: 13px;
 }
 
 .kline-svg-wrap {
-  width: 100%;
-  height: 220px;
+  flex: 1;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .kline-svg-wrap svg {
@@ -80,16 +115,12 @@
   height: 100%;
 }
 
-/* 十字光标跟随 */
+/* 十字光标 */
 .kline-crosshair {
   pointer-events: none;
 }
 
-/* 成交量柱 */
-.kline-volume-up { fill: #f85149; }
-.kline-volume-down { fill: #3fb950; }
-
-/* MA 线 */
+/* MA线 */
 .kline-ma5 { stroke: #d29922; stroke-width: 1; fill: none; }
 .kline-ma10 { stroke: #58a6ff; stroke-width: 1; fill: none; }
 .kline-ma20 { stroke: #bc8cff; stroke-width: 1; fill: none; }
@@ -97,13 +128,13 @@
 /* tooltip */
 .kline-tooltip {
   position: absolute;
-  bottom: 60px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
   background: #1c2128;
   border: 1px solid #444c56;
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   font-size: 11px;
   color: #c9d1d9;
   white-space: nowrap;
@@ -113,10 +144,7 @@
   gap: 10px;
 }
 
-.kline-tooltip .tt-date {
-  color: #8b949e;
-}
-
+.kline-tooltip .tt-date { color: #8b949e; }
 .kline-tooltip .tt-up { color: #f85149; }
 .kline-tooltip .tt-down { color: #3fb950; }
 .kline-tooltip .tt-open { color: #8b949e; }
@@ -124,10 +152,20 @@
 .kline-tooltip .tt-low { color: #8b949e; }
 .kline-tooltip .tt-vol { color: #8b949e; }
 
+/* 时间周期按钮 */
 .kline-timeframe {
   display: flex;
   gap: 4px;
-  margin-left: auto;
+  align-items: center;
+}
+
+.kline-ma-legend {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: #8b949e;
+  align-items: center;
+  margin-right: 8px;
 }
 
 .kline-tf-btn {
