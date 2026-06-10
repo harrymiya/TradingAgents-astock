@@ -437,6 +437,48 @@ def stage2_score(candidates, date_str):
         scores['资金信号'] = signal_score
         total += signal_score
         
+        ## 维度4：恐慌阴+停顿阳加分 (0-3分)
+        # 在最近5天中寻找恐慌阴→停顿阳组合，不必正好是T-1/T-0
+        # 这是尾盘战法核心：前期有涨停的人气股 → 大阴线恐慌 → 隔天尾盘不再恐慌
+        panic_bonus = 0
+        try:
+            panic_conn = sqlite3.connect(DB)
+            klines = panic_conn.execute("""
+                SELECT date, open, high, low, close, volume
+                FROM daily_klines WHERE code = ? ORDER BY date DESC LIMIT 6
+            """, (code,)).fetchall()
+            panic_conn.close()
+            klines = list(reversed(klines))
+            if len(klines) >= 3:
+                for i in range(1, len(klines)):
+                    if i < 2:
+                        continue
+                    d1 = klines[i-1]
+                    d2 = klines[i]
+                    chg_d1 = (d1[4] / klines[i-2][4] - 1) * 100
+                    
+                    if chg_d1 <= -3.5 and d1[4] < d1[1]:
+                        chg_d2 = (d2[4] / d1[4] - 1) * 100 if d1[4] > 0 else 0
+                        if chg_d2 > -2.5:
+                            low_diff = (d2[3] - d1[3]) / d1[3] * 100 if d1[3] > 0 else 0
+                            if low_diff >= -1.5:
+                                has_zt = False
+                                for j in range(max(0, i-22), i):
+                                    if j+1 < len(klines) and klines[j][4] > 0:
+                                        if round(klines[j][4] * 1.1, 2) - klines[j+1][4] < 0.01:
+                                            has_zt = True
+                                            break
+                                panic_bonus = max(panic_bonus, 3 if has_zt else 2)
+                    elif chg_d1 <= -2.5 and d1[4] < d1[1]:
+                        chg_d2 = (d2[4] / d1[4] - 1) * 100 if d1[4] > 0 else 0
+                        if chg_d2 > -2:
+                            panic_bonus = max(panic_bonus, 1)
+        except:
+            pass
+        
+        c['panic_bonus'] = panic_bonus
+        total += panic_bonus
+        
         c['scores'] = scores
         c['total_score'] = total
         c['chain_tag'] = chain_tag
