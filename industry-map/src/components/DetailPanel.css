@@ -310,3 +310,144 @@
   color: #e6edf3;
   font-weight: 500;
 }
+
+/* AI分析按钮 */
+.analyze-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #58a6ff;
+  background: #002d66;
+  color: #58a6ff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.analyze-btn:hover {
+  background: #003b80;
+  color: #79b8ff;
+  border-color: #79b8ff;
+}
+.analyze-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.analyze-progress {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: #6e7681;
+}
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #21262d;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.progress-fill {
+  height: 100%;
+  background: #58a6ff;
+  width: 30%;
+  border-radius: 2px;
+  animation: progressAnim 2s ease-in-out infinite;
+}
+@keyframes progressAnim {
+  0% { width: 10%; margin-left: 0; }
+  50% { width: 50%; margin-left: 25%; }
+  100% { width: 10%; margin-left: 90%; }
+}
+
+/* 分析报告 */
+.report-section {
+  border-top: 1px solid #30363d;
+  padding-top: 12px;
+  margin-top: 8px;
+}
+.report-meta {
+  font-size: 11px;
+  color: #6e7681;
+  margin-bottom: 10px;
+}
+.report-block {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #161b22;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+}
+.report-block h5 {
+  font-size: 12px;
+  color: #e6edf3;
+  margin: 0 0 6px;
+}
+.report-block p {
+  font-size: 11px;
+  color: #c9d1d9;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.debate-block .bull {
+  border-left: 3px solid #3fb950;
+  padding-left: 8px;
+  margin-bottom: 6px;
+}
+.debate-block .bear {
+  border-left: 3px solid #f85149;
+  padding-left: 8px;
+}
+.judge-block {
+  border: 1px solid #d2a8ff;
+}
+.judge-block h5 {
+  color: #d2a8ff;
+}
+.risk-block .conservative {
+  border-left: 3px solid #58a6ff;
+  padding-left: 8px;
+  margin-bottom: 6px;
+}
+.risk-block .aggressive {
+  border-left: 3px solid #f85149;
+  padding-left: 8px;
+  margin-bottom: 6px;
+}
+.risk-block .neutral {
+  border-left: 3px solid #d29922;
+  padding-left: 8px;
+}
+.trader-block {
+  border: 1px solid #ffb320;
+}
+.trader-block h5 {
+  color: #ffb320;
+}
+
+/* 错误提示 */
+.error-section {
+  background: #2d0a0a;
+  border: 1px solid #7d1a2c;
+  border-radius: 6px;
+  padding: 10px;
+}
+.error-text {
+  font-size: 12px;
+  color: #f85149;
+  margin: 0 0 6px;
+}
+.error-hint {
+  font-size: 11px;
+  color: #8b949e;
+  margin: 0;
+}
+.error-hint code {
+  background: #21262d;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
