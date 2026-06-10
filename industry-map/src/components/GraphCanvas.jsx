@@ -194,28 +194,37 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
   });
   svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
 
-  // 选中高亮：选中节点加边框+外发光，其他节点不变
+  // 选中高亮：选中stock节点加蓝色矩形外框包围整行
   if (selectedNode) {
-    nodeG.select('circle').attr('stroke-width', d => {
-      if (d.id === selectedNode.id) return 4;
-      if (selectedNode.type === 'link' && d.linkName === selectedNode.linkName && d.type === 'stock') return 3;
-      return d.type === 'link' ? 2.5 : 1.5;
-    }).attr('stroke', d => {
-      if (d.id === selectedNode.id) return '#58a6ff';
-      return d.fillColor || d.color || '#8b949e';
+    // 先移除旧的选中框
+    nodeG.selectAll('.sel-box').remove();
+    // 给选中节点加矩形框
+    nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
+      const group = d3.select(this);
+      if (d.type === 'stock') {
+        const bw = 150, bh = 20;
+        group.insert('rect', ':first-child')
+          .attr('class', 'sel-box')
+          .attr('x', -8).attr('y', -10)
+          .attr('width', bw).attr('height', bh)
+          .attr('fill', 'none')
+          .attr('stroke', '#58a6ff')
+          .attr('stroke-width', 1.5)
+          .attr('rx', 4).attr('ry', 4);
+      } else {
+        // 环节节点用发光圈
+        group.insert('circle', ':first-child')
+          .attr('class', 'sel-box')
+          .attr('cx', d.x).attr('cy', d.y)
+          .attr('r', (d.r || 22) + 5)
+          .attr('fill', 'none')
+          .attr('stroke', '#58a6ff')
+          .attr('stroke-width', 2)
+          .attr('stroke-opacity', 0.5);
+      }
     });
-    // 被选中节点加外发光圈
-    nodeG.filter(d => d.id === selectedNode.id).append('circle')
-      .attr('r', d => (d.r || 5) + 5)
-      .attr('fill', 'none')
-      .attr('stroke', '#58a6ff')
-      .attr('stroke-width', 2)
-      .attr('stroke-opacity', 0.5)
-      .attr('class', 'glow-ring');
   } else {
-    nodeG.select('.glow-ring').remove();
-    nodeG.select('circle').attr('stroke-width', d => d.type === 'link' ? 2.5 : 1.5)
-      .attr('stroke', d => d.fillColor || d.color || '#8b949e');
+    nodeG.selectAll('.sel-box').remove();
   }
 
   nodeG.call(d3.drag()
@@ -645,32 +654,37 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   });
   svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
 
-  // 选中高亮：选中节点加边框+外发光，其他节点不变
+  // 选中高亮：选中stock节点加蓝色矩形外框包围整行（横向模式用全局坐标）
   if (selectedNode) {
-    nodeG.select('circle').attr('stroke-width', d => {
-      if (d.id === selectedNode.id) return 4;
-      if (selectedNode.type === 'link' && d.linkName === selectedNode.linkName && d.type === 'stock') return 3;
-      return d.type === 'link' ? 2.5 : 1.5;
-    }).attr('stroke', d => {
-      if (d.id === selectedNode.id) return '#58a6ff';
-      return d.fillColor || d.color || '#8b949e';
+    // 先移除旧的选中框
+    nodeG.selectAll('.sel-box').remove();
+    // 给选中节点加矩形框
+    nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
+      const group = d3.select(this);
+      if (d.type === 'stock') {
+        const bw = 150, bh = 20;
+        group.insert('rect', ':first-child')
+          .attr('class', 'sel-box')
+          .attr('x', d.x - 8).attr('y', d.y - 10)
+          .attr('width', bw).attr('height', bh)
+          .attr('fill', 'none')
+          .attr('stroke', '#58a6ff')
+          .attr('stroke-width', 1.5)
+          .attr('rx', 4).attr('ry', 4);
+      } else {
+        // 环节节点用发光圈
+        group.insert('circle', ':first-child')
+          .attr('class', 'sel-box')
+          .attr('cx', d.x).attr('cy', d.y)
+          .attr('r', (d.r || 22) + 5)
+          .attr('fill', 'none')
+          .attr('stroke', '#58a6ff')
+          .attr('stroke-width', 2)
+          .attr('stroke-opacity', 0.5);
+      }
     });
-    // 被选中节点加外发光圈（只加一次，用class防重复）
-    if (nodeG.filter(d => d.id === selectedNode.id).select('.glow-ring').empty()) {
-      nodeG.filter(d => d.id === selectedNode.id).append('circle')
-        .attr('cx', d => d.x).attr('cy', d => d.y)
-        .attr('r', d => (d.r || 5) + 5)
-        .attr('fill', 'none')
-        .attr('stroke', '#58a6ff')
-        .attr('stroke-width', 2)
-        .attr('stroke-opacity', 0.5)
-        .attr('class', 'glow-ring')
-        .attr('pointer-events', 'none');
-    }
   } else {
-    nodeG.selectAll('.glow-ring').remove();
-    nodeG.select('circle').attr('stroke-width', d => d.type === 'link' ? 2.5 : 1.5)
-      .attr('stroke', d => d.fillColor || d.color || '#8b949e');
+    nodeG.selectAll('.sel-box').remove();
   }
 } catch(e) { 
   console.error('buildHorizontalGraph error:', e.message, e.stack); 
