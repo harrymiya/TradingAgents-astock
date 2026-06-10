@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import './ScreeningPanel.css';
 
 const API_URL = '/api/screening';
@@ -9,16 +9,14 @@ const STRATEGY_META = {
   sanyin: { label: '三阴选股', icon: '🌧️', desc: '涨停启动→3日缩量回调→今日企稳' },
 };
 
-export default function ScreeningPanel({ onSelectScreening }) {
+export default function ScreeningPanel({ onSelectScreening, selectedCode }) {
   const [activeStrategy, setActiveStrategy] = useState(null);
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
-  const [selectedItem, setSelectedItem] = useState(null);
 
   const runStrategy = async (strategy) => {
     setActiveStrategy(strategy);
-    // 如果已经有缓存结果，直接显示
     if (results[strategy]) return;
 
     setLoading(prev => ({ ...prev, [strategy]: true }));
@@ -44,9 +42,8 @@ export default function ScreeningPanel({ onSelectScreening }) {
   };
 
   const handleClickStock = (item) => {
-    setSelectedItem(item.code === selectedItem?.code ? null : item);
+    // 不切换tab，只通知父组件跳产业链+选中
     if (onSelectScreening) {
-      // 回调给父组件：跳转到产业链+选中该股
       onSelectScreening(item);
     }
   };
@@ -78,24 +75,23 @@ export default function ScreeningPanel({ onSelectScreening }) {
         <div className="screening-error">{error[activeStrategy]}</div>
       )}
 
-      {currentData && !loading[activeStrategy] && (
+      {activeStrategy && !loading[activeStrategy] && currentData && (
         <div className="screening-summary">
           共 {currentData.count} 只符合条件的股票
           {currentData.s3_count !== undefined && (
             <> (S3: {currentData.s3_count} | 三买: {currentData.sanmai_count})</>
           )}
-          （日期：{currentData.date}）
         </div>
       )}
 
       {loading[activeStrategy] && (
-        <div className="screening-loading">正在扫描全市场，请稍候...</div>
+        <div className="screening-loading">⏳ 正在扫描全市场...</div>
       )}
 
       {activeStrategy && currentResults.length > 0 && (
         <div className="screening-results">
           {currentResults.map((item) => {
-            const isSelected = selectedItem?.code === item.code;
+            const isSelected = selectedCode && item.code === selectedCode;
             const chg = parseFloat(item.chg) || 0;
             return (
               <div

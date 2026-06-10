@@ -5,6 +5,7 @@ import Controls from './components/Controls';
 import Tooltip from './components/Tooltip';
 import DetailPanel from './components/DetailPanel';
 import RevealPanel from './components/RevealPanel';
+import IndustrySwitcher from './components/IndustrySwitcher';
 import industryData from './data/industry_data.json';
 import priceData from './data/price_data.json';
 import featData from './data/feat_data.json';
@@ -13,7 +14,6 @@ import './App.css';
 const API_BASE = 'https://qt.gtimg.cn/q=';
 const BATCH_SIZE = 30;
 
-// 从 URL hash 获取初始参数
 function getInitParams() {
   const hash = window.location.hash.replace('#', '');
   const params = new URLSearchParams(hash);
@@ -24,7 +24,6 @@ function getInitParams() {
   };
 }
 
-// 代码 → 产业链名映射（提前构建一次）
 function buildCodeToIndustryMap(data) {
   const map = {};
   for (const [indName, indData] of Object.entries(data)) {
@@ -41,7 +40,6 @@ function buildCodeToIndustryMap(data) {
   return map;
 }
 
-// 收集指定产业链内所有股票代码
 function getIndustryCodes(data, industryName) {
   const indData = data[industryName];
   if (!indData || !indData['环节']) return [];
@@ -66,16 +64,16 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString('zh-CN'));
 
-  // 详情栏状态
   const [selectedNode, setSelectedNode] = useState(null);
   const [detailHistory, setDetailHistory] = useState([]);
-  // 选股跳转附加信息
   const [screeningInfo, setScreeningInfo] = useState(null);
+  // 选股互动：选中的代码 + 该代码所有产业链列表
+  const [screeningCode, setScreeningCode] = useState(null);
+  const [availableChains, setAvailableChains] = useState([]);
 
   const graphRef = useRef(null);
   const autoRefreshRef = useRef(null);
 
-  // 获取当前产业链的行情
   const fetchPrices = useCallback(async () => {
     const codes = getIndustryCodes(industryData, currentIndustry);
     if (codes.length === 0) return;
@@ -125,12 +123,10 @@ export default function App() {
     setLoading(false);
   }, [currentIndustry]);
 
-  // 产业链切换 → 立即拉行情
   useEffect(() => {
     fetchPrices();
   }, [currentIndustry, fetchPrices]);
 
-  // 自动刷新
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPrices();
@@ -139,7 +135,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchPrices]);
 
-  // 点击节点
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
     setDetailHistory([]);
@@ -147,37 +142,41 @@ export default function App() {
     setTooltip(null);
   }, []);
 
-  // 从环节详情点击公司
   const handleSelectStock = useCallback(({ code, name, linkName }) => {
     setDetailHistory(prev => [...prev, { code, name, linkName }]);
   }, []);
 
-  // 二级返回
   const handleBack = useCallback(() => {
     setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
-  // 选股结果点击：跳转到产业链+选中该股
+  // 选股结果点击：跳转产业链+选中（不切sidebar tab）
   const handleSelectScreening = useCallback((item) => {
     const code = item.code;
-    // 查找该股票所在的产业链
-    const chains = codeToIndustry[code];
-    if (chains && chains.length > 0) {
+    const chains = codeToIndustry[code] || [];
+    setScreeningCode(code);
+    setAvailableChains(chains);
+
+    if (chains.length > 0) {
       setCurrentIndustry(chains[0]);
     }
     // 设置为选中节点
     setSelectedNode({ code, name: item.name, type: 'stock', id: code });
     setDetailHistory([]);
-    // 保留选股附加信息，传递给详情面板
     setScreeningInfo({
-      code: item.code,
-      name: item.name,
-      strategy: item.strategy,
-      detail: item.detail,
-      chg: item.chg,
-      close: item.close,
+      code: item.code, name: item.name,
+      strategy: item.strategy, detail: item.detail,
+      chg: item.chg, close: item.close,
     });
   }, []);
+
+  // 下拉框切换产业链
+  const handleSwitchIndustry = useCallback((newIndustry) => {
+    setCurrentIndustry(newIndustry);
+    // 保留selectedNode和screeningInfo，不重置
+  }, []);
+
+  const hasIndustry = currentIndustry && industryData[currentIndustry] && industryData[currentIndustry]['环节'];
 
   return (
     <div className="app">
@@ -186,8 +185,16 @@ export default function App() {
         current={currentIndustry}
         onSelect={setCurrentIndustry}
         onSelectScreening={handleSelectScreening}
+        selectedCode={screeningCode}
       />
       <div className="main">
+        {availableChains.length > 1 && screeningCode && (
+          <IndustrySwitcher
+            chains={availableChains}
+            current={currentIndustry}
+            onSwitch={handleSwitchIndustry}
+          />
+        )}
         <Controls
           colorMetric={colorMetric}
           onColorMetricChange={setColorMetric}
@@ -198,22 +205,23 @@ export default function App() {
           lastUpdate={lastUpdate}
         />
         <div className="graph-container" ref={graphRef}>
-          <GraphCanvas
-            layoutMode={layoutMode}
-            industry={currentIndustry}
-            industryData={industryData}
-            stockPrices={stockPrices}
-            featData={featData}
-            colorMetric={colorMetric}
-            onTooltip={setTooltip}
-            onNodeClick={handleNodeClick}
-            selectedNode={selectedNode}
-          />
-          {tooltip && (
-            <Tooltip
-              data={tooltip}
-              onClose={() => setTooltip(null)}
+          {hasIndustry ? (
+            <GraphCanvas
+              layoutMode={layoutMode}
+              industry={currentIndustry}
+              industryData={industryData}
+              stockPrices={stockPrices}
+              featData={featData}
+              colorMetric={colorMetric}
+              onTooltip={setTooltip}
+              onNodeClick={handleNodeClick}
+              selectedNode={selectedNode}
             />
+          ) : screeningCode ? (
+            <div className="no-industry-hint">该股票暂无匹配的产业链</div>
+          ) : null}
+          {tooltip && (
+            <Tooltip data={tooltip} onClose={() => setTooltip(null)} />
           )}
         </div>
       </div>
@@ -222,7 +230,7 @@ export default function App() {
         stockPrices={stockPrices}
         stockIndustry={{}}
         industryName={currentIndustry}
-        onClose={() => { setSelectedNode(null); setDetailHistory([]); setScreeningInfo(null); }}
+        onClose={() => { setSelectedNode(null); setDetailHistory([]); setScreeningInfo(null); setScreeningCode(null); setAvailableChains([]); }}
         onSelectStock={handleSelectStock}
         onBack={handleBack}
         history={detailHistory}

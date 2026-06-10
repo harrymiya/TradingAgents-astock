@@ -202,7 +202,7 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
       if (d.type === 'stock') {
-        const bw = 150, bh = 20;
+        const bw = 185, bh = 20;
         group.insert('rect', ':first-child')
           .attr('class', 'sel-box')
           .attr('x', -8).attr('y', -10)

@@ -4,14 +4,14 @@ import ScreeningPanel from './ScreeningPanel';
 
 const API_BASE = 'https://qt.gtimg.cn/q=';
 const BATCH_SIZE = 30;
-const CACHE_TTL = 300000; // 5分钟
+const CACHE_TTL = 300000;
 
-export default function Sidebar({ industries, current, onSelect, selectedStock, onSelectScreening }) {
+export default function Sidebar({ industries, current, onSelect, onSelectScreening, selectedCode }) {
   const [industryHeat, setIndustryHeat] = useState({});
   const cacheRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('industry'); // industry | screening
+  const [activeTab, setActiveTab] = useState('industry');
 
-  // 获取各行业实时涨跌幅（每个行业取前5只估算）
+  // 获取各行业实时涨跌幅
   useEffect(() => {
     const now = Date.now();
     if (cacheRef.current && (now - cacheRef.current.time) < CACHE_TTL) {
@@ -53,9 +53,7 @@ export default function Sidebar({ industries, current, onSelect, selectedStock, 
             if (!code) continue;
             results[code] = parseFloat(parts[32]) || 0;
           }
-        } catch (e) {
-          // silent
-        }
+        } catch (e) {}
       }
 
       const heat = {};
@@ -72,7 +70,6 @@ export default function Sidebar({ industries, current, onSelect, selectedStock, 
     fetchPrices();
   }, [industries]);
 
-  // 排序+热度标记
   const heatSorted = React.useMemo(() => {
     const list = [];
     for (const [name, info] of Object.entries(industries)) {
@@ -98,17 +95,8 @@ export default function Sidebar({ industries, current, onSelect, selectedStock, 
   const currentInfo = industries[current];
   const currentStockCount = heatSorted.find(i => i.name === current)?.stocks || 0;
 
-  const handleSelectScreening = (item) => {
-    // 切换tab到产业链，并选中该股票
-    setActiveTab('industry');
-    if (onSelectScreening) {
-      onSelectScreening(item);
-    }
-  };
-
   return (
     <div className="sidebar">
-      {/* Tabs */}
       <div className="sidebar-tabs">
         <button
           className={`sidebar-tab ${activeTab === 'industry' ? 'active' : ''}`}
@@ -127,23 +115,21 @@ export default function Sidebar({ industries, current, onSelect, selectedStock, 
       {activeTab === 'industry' && (
         <>
           <div className="industry-list">
-            {heatSorted.map(({ name, stocks, avgChg }) => {
-              return (
-                <button
-                  key={name}
-                  className={`industry-btn ${name === current ? 'active' : ''}`}
-                  onClick={() => onSelect(name)}
-                  title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label}`}
-                >
-                  <span className="heat-dot" style={{ background: getHeatDot(avgChg).color }}></span>
-                  <span className="btn-name">{name}</span>
-                  <span className="heat-chg" style={{
-                    color: avgChg > 0 ? '#ff6b6b' : avgChg < 0 ? '#51cf66' : '#8b949e'
-                  }}>{avgChg > 0 ? '+' : ''}{avgChg.toFixed(1)}%</span>
-                  <span className="badge">{stocks}家</span>
-                </button>
-              );
-            })}
+            {heatSorted.map(({ name, stocks, avgChg }) => (
+              <button
+                key={name}
+                className={`industry-btn ${name === current ? 'active' : ''}`}
+                onClick={() => onSelect(name)}
+                title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label}`}
+              >
+                <span className="heat-dot" style={{ background: getHeatDot(avgChg).color }}></span>
+                <span className="btn-name">{name}</span>
+                <span className="heat-chg" style={{
+                  color: avgChg > 0 ? '#ff6b6b' : avgChg < 0 ? '#51cf66' : '#8b949e'
+                }}>{avgChg > 0 ? '+' : ''}{avgChg.toFixed(1)}%</span>
+                <span className="badge">{stocks}家</span>
+              </button>
+            ))}
           </div>
           {currentInfo && (
             <div className="industry-desc">
@@ -158,7 +144,10 @@ export default function Sidebar({ industries, current, onSelect, selectedStock, 
       )}
 
       {activeTab === 'screening' && (
-        <ScreeningPanel onSelectScreening={handleSelectScreening} />
+        <ScreeningPanel
+          onSelectScreening={onSelectScreening}
+          selectedCode={selectedCode}
+        />
       )}
     </div>
   );
