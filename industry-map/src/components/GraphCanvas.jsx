@@ -361,7 +361,7 @@ function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorM
   const LINK_RADIUS = 22;       // 环节圆基础半径
   const LINK_SECTION_H = 40;    // 环节圆+名称区域高度
   const STOCK_H = 20;           // 每个股票行高（含间距）
-  const BETWEEN_LINK_H = 16;    // 不同环节之间的垂直间距
+  const BETWEEN_LINK_H = 24;    // 不同环节之间的垂直间距（加大防止重叠）
   const LINK_LABEL_Y = 60;      // 环节名称在圆下方的y偏移（相对环节顶部）
 
   // layout宽度
