@@ -8,6 +8,7 @@ export default function Sidebar({ industries, current, onSelect }) {
   const stats = React.useMemo(() => {
     const s = {};
     for (const [name, info] of Object.entries(industries)) {
+      if (name.startsWith('_')) continue;
       let stocks = 0;
       const links = Object.keys(info['环节']).length;
       for (const l of Object.values(info['环节'])) {
@@ -22,7 +23,7 @@ export default function Sidebar({ industries, current, onSelect }) {
     <div className="sidebar">
       <h2>🏭 产业地图</h2>
       <div className="industry-list">
-        {Object.entries(industries).map(([name]) => (
+        {Object.entries(industries).filter(([n]) => !n.startsWith('_')).map(([name]) => (
           <button
             key={name}
             className={`industry-btn ${name === current ? 'active' : ''}`}

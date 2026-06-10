@@ -10,6 +10,11 @@
   display: block;
 }
 
+/* 横向模式容器：允许画布内缩放与平移 */
+.graph-wrapper[data-mode="horizontal"] {
+  overflow: hidden;
+}
+
 /* D3 elements */
 .link {
   fill: none;
@@ -27,5 +32,19 @@
 }
 
 .node text {
+  user-select: none;
+}
+
+/* 横向模式节点 */
+.h-node circle {
+  cursor: pointer;
+}
+
+.h-node circle:hover {
+  stroke: #58a6ff !important;
+  stroke-width: 3px !important;
+}
+
+.h-node text {
   user-select: none;
 }

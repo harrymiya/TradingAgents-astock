@@ -1,15 +1,15 @@
 import React from 'react';
 import './DetailPanel.css';
 
-// 颜色映射（与GraphCanvas一致）
+// 涨用红色，跌用绿色（A股习惯）
 function getChgColor(chg) {
-  if (chg > 5) return '#00c853';
-  if (chg > 3) return '#2ea043';
-  if (chg > 0) return '#58a6ff';
+  if (chg > 5) return '#ff2d2d';
+  if (chg > 3) return '#ff5252';
+  if (chg > 0) return '#ff6b6b';
   if (chg === 0) return '#8b949e';
-  if (chg > -3) return '#f85149';
-  if (chg > -5) return '#d73a49';
-  return '#7d1a2c';
+  if (chg > -3) return '#51cf66';
+  if (chg > -5) return '#2ea043';
+  return '#00c853';
 }
 
 export default function DetailPanel({

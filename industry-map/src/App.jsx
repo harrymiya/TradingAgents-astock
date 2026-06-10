@@ -6,6 +6,7 @@ import Tooltip from './components/Tooltip';
 import DetailPanel from './components/DetailPanel';
 import industryData from './data/industry_data.json';
 import priceData from './data/price_data.json';
+import featData from './data/feat_data.json';
 import './App.css';
 
 const API_BASE = 'https://qt.gtimg.cn/q=';
@@ -22,30 +23,24 @@ function getInitParams() {
   };
 }
 
-// 收集所有代码（包含每个环节的股票列表信息）
-function buildAllCodes(data) {
-  const codes = new Set();
-  const stockToLink = {};  // code -> 所属环节名
-  const linkStocks = {};   // 环节名 -> 该环节的股票列表
-  
-  for (const [indName, indData] of Object.entries(data)) {
-    for (const [linkName, linkData] of Object.entries(indData['环节'])) {
-      if (!linkStocks[indName]) linkStocks[indName] = {};
-      linkStocks[indName][linkName] = [];
-      for (const c of linkData['股票']) {
-        codes.add(c);
-        stockToLink[c] = linkName;
-        linkStocks[indName][linkName].push({ code: c, name: '' });
-      }
+// 收集指定产业链内所有股票代码
+function getIndustryCodes(data, industryName) {
+  const indData = data[industryName];
+  if (!indData || !indData['环节']) return [];
+  const codes = [];
+  for (const [linkName, linkData] of Object.entries(indData['环节'])) {
+    for (const c of linkData['股票']) {
+      if (/^\d{6}$/.test(c)) codes.push(c);
     }
   }
-  return { codes: [...codes], stockToLink, linkStocks };
+  return codes;
 }
 
 export default function App() {
   const init = getInitParams();
   const [currentIndustry, setCurrentIndustry] = useState(init.industry);
   const [colorMetric, setColorMetric] = useState(init.metric);
+  const [layoutMode, setLayoutMode] = useState('horizontal');
   const [stockPrices, setStockPrices] = useState(priceData.prices || {});
   const [tooltip, setTooltip] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -53,31 +48,36 @@ export default function App() {
 
   // 详情栏状态
   const [selectedNode, setSelectedNode] = useState(null);
-  const [detailHistory, setDetailHistory] = useState([]);  // 二级导航栈
+  const [detailHistory, setDetailHistory] = useState([]);
 
   const graphRef = useRef(null);
+  const autoRefreshRef = useRef(null);
 
-  // 构建所有代码和映射
-  const { codes: allCodes, stockToLink, linkStocks } = React.useMemo(() => buildAllCodes(industryData), []);
-
-  // 获取行情数据
+  // 获取当前产业链的行情（只拉图中显示的公司）
   const fetchPrices = useCallback(async () => {
+    const codes = getIndustryCodes(industryData, currentIndustry);
+    if (codes.length === 0) return;
+
     setLoading(true);
     const results = {};
 
-    for (let i = 0; i < allCodes.length; i += BATCH_SIZE) {
-      const batch = allCodes.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < codes.length; i += BATCH_SIZE) {
+      const batch = codes.slice(i, i + BATCH_SIZE);
       const qtCodes = batch.map(c => (c.startsWith('6') ? 'sh' : 'sz') + c);
       const url = `${API_BASE}${qtCodes.join(',')}&_=${Date.now()}`;
 
       try {
         const resp = await fetch(url);
-        const text = await resp.text();
+        const buf = await resp.arrayBuffer();
+        const decoder = new TextDecoder('gb18030');
+        const text = decoder.decode(buf);
         for (const line of text.split(';')) {
           if (!line.trim() || !line.includes('~')) continue;
           const parts = line.split('~');
           const rawCode = parts[0] || '';
-          const code = rawCode.replace(/^(sh|sz)/, '');
+          const codeMatch = rawCode.match(/(\d{6})/);
+          const code = codeMatch ? codeMatch[1] : rawCode;
+          if (!code) continue;
           const price = parseFloat(parts[3]) || 0;
           const chg = parseFloat(parts[32]) || 0;
           const yearChg = parseFloat(parts[69]) || 0;
@@ -101,12 +101,21 @@ export default function App() {
     setStockPrices(prev => ({ ...prev, ...results }));
     setLastUpdate(new Date().toLocaleTimeString('zh-CN'));
     setLoading(false);
-  }, [allCodes]);
+  }, [currentIndustry]);
 
-  // 初始加载
+  // 产业链切换 → 立即拉行情
   useEffect(() => {
     fetchPrices();
-  }, []);
+  }, [currentIndustry, fetchPrices]);
+
+  // 自动刷新：每30秒轮询当前产业链的实时数据
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPrices();
+    }, 30000);
+    autoRefreshRef.current = interval;
+    return () => clearInterval(interval);
+  }, [fetchPrices]);
 
   // 点击节点处理
   const handleNodeClick = useCallback((node) => {
@@ -135,15 +144,19 @@ export default function App() {
         <Controls
           colorMetric={colorMetric}
           onColorMetricChange={setColorMetric}
+          layoutMode={layoutMode}
+          onLayoutModeChange={setLayoutMode}
           onRefresh={fetchPrices}
           loading={loading}
           lastUpdate={lastUpdate}
         />
         <div className="graph-container" ref={graphRef}>
           <GraphCanvas
+            layoutMode={layoutMode}
             industry={currentIndustry}
             industryData={industryData}
             stockPrices={stockPrices}
+            featData={featData}
             colorMetric={colorMetric}
             onTooltip={setTooltip}
             onNodeClick={handleNodeClick}

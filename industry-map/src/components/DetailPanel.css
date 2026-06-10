@@ -170,8 +170,8 @@
   font-size: 12px;
   font-weight: 600;
 }
-.stock-chg.up { color: #00c853; }
-.stock-chg.down { color: #f85149; }
+.stock-chg.up { color: #ff6b6b; }
+.stock-chg.down { color: #51cf66; }
 
 .stock-sub {
   display: flex;
