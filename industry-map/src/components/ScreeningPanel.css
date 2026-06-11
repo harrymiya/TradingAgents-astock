@@ -264,3 +264,124 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 🆕 黄金坑选股样式 */
+.golden-pit-item {
+  border-left: 2px solid #58a6ff;
+}
+
+.golden-pit-item:hover {
+  border-left-color: #d29922;
+}
+
+.golden-pit-detail {
+  font-size: 10px;
+  color: #8b949e;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.golden-pit-detail span {
+  background: #161b22;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.screening-chain-tag {
+  font-size: 9px;
+  color: #d29922;
+  background: #2d2a12;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.screening-pos20 {
+  color: #ff6b6b !important;
+}
+
+.screening-ma20 {
+  color: #d29922 !important;
+}
+
+.screening-vr5 {
+  color: #58a6ff !important;
+}
+
+.screening-mcap {
+  color: #7ee787 !important;
+}
+
+.screening-dd {
+  color: #ff6b6b !important;
+}
+
+/* ⭐ V3黄金坑新样式 */
+.golden-pit-detail-v3 {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.golden-pit-signal-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.signal-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 8px;
+}
+.signal-1 {
+  color: #d29922;
+  background: #2d2a12;
+  border: 1px solid #d29922;
+}
+.signal-2 {
+  color: #58a6ff;
+  background: #1a253b;
+  border: 1px solid #58a6ff;
+}
+.signal-3 {
+  color: #8b949e;
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+.golden-pit-metrics {
+  font-size: 10px;
+  color: #8b949e;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.gp-metric {
+  background: #161b22;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #8b949e;
+}
+.golden-pit-score-detail {
+  font-size: 9px;
+  color: #6e7681;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.golden-pit-score-detail span {
+  color: #6e7681;
+}
+.sd-sep {
+  color: #30363d;
+  font-size: 8px;
+}
+.golden-pit-v3-badge {
+  font-size: 9px;
+  color: #58a6ff;
+  background: #1a253b;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}

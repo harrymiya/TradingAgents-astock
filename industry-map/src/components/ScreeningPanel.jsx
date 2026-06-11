@@ -8,6 +8,7 @@ const STRATEGY_META = {
   s3: { label: 'S3选股', icon: '⚡', desc: '超跌反弹(位<20,涨3-7%,vr1.2-2.5,MA20<-8%)' },
   sanmai: { label: '三买选股', icon: '🔱', desc: '中枢突破+回抽不破ZG' },
   sanyin: { label: '三阴选股', icon: '🌧️', desc: '涨停启动→3日缩量回调→今日企稳' },
+  golden_pit: { label: '黄金坑选股', icon: '🕳️', desc: '优质产业链(星球)+60日线不破+缩量<0.7+7维评分' },
 };
 
 async function fetchRealTimePrices(codes) {
@@ -233,7 +234,13 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
 
       {activeStrategy && !loading[activeStrategy] && currentData && (
         <div className="screening-summary">
-          共 {currentData.count} 只 → Top10（评分排名）｜点击任一只启动深度分析
+          共 {currentData.count} 只 → Top10｜点击任一只启动深度分析
+          {currentData.golden_pit_version === 'v3' && (
+            <span className="golden-pit-v3-badge">
+              {' '}v3{currentData.market_tag && ` | 大盘${currentData.market_tag}`}
+              {currentData.ma60_threshold && ` | ma60>${currentData.ma60_threshold}%`}
+            </span>
+          )}
         </div>
       )}
 
@@ -248,17 +255,22 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
             const chg = parseFloat(item.chg) || 0;
             const itemAnalysis = analysisState[item.code];
             const itemAnalyzing = itemAnalysis?.analyzing;
+            const isGoldenPit = activeStrategy === 'golden_pit';
+            const scoreThreshold = isGoldenPit ? 12 : 9;
             return (
               <div
                 key={item.code}
-                className={`screening-item ${isSelected ? 'selected' : ''} ${itemAnalyzing ? 'analyzing' : ''}`}
+                className={`screening-item ${isSelected ? 'selected' : ''} ${itemAnalyzing ? 'analyzing' : ''} ${isGoldenPit ? 'golden-pit-item' : ''}`}
                 onClick={() => handleClickStock(item)}
               >
                 <div className="screening-item-header">
                   <span className="screening-code">{item.code}</span>
                   <span className="screening-name">{item.name}</span>
+                  {item.chain && isGoldenPit && (
+                    <span className="screening-chain-tag">{item.chain.replace(/\(qcc\)/g,'').slice(0, 8)}</span>
+                  )}
                   {item.total_score !== undefined && (
-                    <span className={`screening-score ${item.total_score >= 12 ? 'high' : item.total_score >= 9 ? 'mid' : ''}`}>
+                    <span className={`screening-score ${item.total_score >= scoreThreshold ? 'high' : item.total_score >= 7 ? 'mid' : ''}`}>
                       {item.total_score}分
                     </span>
                   )}
@@ -268,7 +280,52 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                   <span className="screening-price">{item.close?.toFixed(2)}</span>
                   {itemAnalyzing && <span className="screening-spin">🔄</span>}
                 </div>
-                {item.strategy && (
+                {isGoldenPit && item.score_detail && (
+                  <div className="golden-pit-detail-v3">
+                    <div className="golden-pit-signal-row">
+                      {item.total_score >= 15 ? (
+                        <span className="signal-badge signal-1">⭐ 黄金坑1级</span>
+                      ) : item.total_score >= 10 ? (
+                        <span className="signal-badge signal-2">✨ 黄金坑2级</span>
+                      ) : (
+                        <span className="signal-badge signal-3">🔹 黄金坑3级</span>
+                      )}
+                    </div>
+                    <div className="golden-pit-metrics">
+                      <span className="gp-metric">ma60={item.ma60}%</span>
+                      <span className="gp-metric">pos20={item.pos20}%</span>
+                      <span className="gp-metric">ma20={item.ma20}%</span>
+                      <span className="gp-metric">vr5={item.vr5?.toFixed(2)}x</span>
+                      {item.mcap > 0 && <span className="gp-metric">{item.mcap >= 100 ? `${(item.mcap/100).toFixed(0)}百亿` : `${item.mcap.toFixed(0)}亿`}</span>}
+                      {item.dd > 0 && <span className="gp-metric">连跌{item.dd}天</span>}
+                    </div>
+                    <div className="golden-pit-score-detail">
+                      <span>链{item.score_detail.chain}</span>
+                      <span className="sd-sep">|</span>
+                      <span>60{item.score_detail.ma60}</span>
+                      <span className="sd-sep">|</span>
+                      <span>量{item.score_detail.vr}</span>
+                      <span className="sd-sep">|</span>
+                      <span>位{item.score_detail.pos}</span>
+                      <span className="sd-sep">|</span>
+                      <span>跌{item.score_detail.dd}</span>
+                      <span className="sd-sep">|</span>
+                      <span>实{item.score_detail.real}</span>
+                      <span className="sd-sep">|</span>
+                      <span>盘{item.score_detail.market}</span>
+                    </div>
+                  </div>
+                )}
+                {isGoldenPit && !item.score_detail && (
+                  <div className="screening-item-detail golden-pit-detail">
+                    <span>pos20={item.pos20}%</span>
+                    <span>ma20={item.ma20}%</span>
+                    <span>vr5={item.vr5?.toFixed(2)}x</span>
+                    {item.mcap > 0 && <span>{item.mcap >= 100 ? `${(item.mcap/100).toFixed(0)}百亿` : `${item.mcap.toFixed(0)}亿`}</span>}
+                    {item.dd > 0 && <span>连跌{item.dd}天</span>}
+                  </div>
+                )}
+                {item.strategy && !isGoldenPit && (
                   <div className="screening-item-detail">
                     <span className="screening-strategy-tag">{item.strategy}</span>
                     <span className="screening-detail-text">{item.detail || ''}</span>
