@@ -103,12 +103,20 @@ function buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onN
   if (selectedNode) {
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
-      group.insert('rect', ':first-child').attr('class', 'sel-box')
-        .attr('x', d.type === 'stock' ? -6 : -(d.r || 20) - 4)
-        .attr('y', d.type === 'stock' ? -8 : -(d.r || 20) - 4)
-        .attr('width', d.type === 'stock' ? 150 : (d.r || 20) * 2 + 8)
-        .attr('height', d.type === 'stock' ? 16 : (d.r || 20) * 2 + 8)
-        .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 4);
+      if (d.type === 'stock') {
+        // 公司节点：圆点(0,0,r≈4-10) + 名称文字(dx=8) + 涨跌幅
+        // 框住圆点+名称+涨跌幅整体
+        group.insert('rect', ':first-child').attr('class', 'sel-box')
+          .attr('x', -8).attr('y', -10)
+          .attr('width', 140).attr('height', 20)
+          .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 4);
+      } else {
+        // 环节节点：大圆+居中文字
+        group.insert('rect', ':first-child').attr('class', 'sel-box')
+          .attr('x', -(d.r || 20) - 4).attr('y', -(d.r || 20) - 4)
+          .attr('width', (d.r || 20) * 2 + 8).attr('height', (d.r || 20) * 2 + 8)
+          .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 4);
+      }
     });
   }
 
@@ -197,7 +205,7 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
           row.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
 
           // 选中高亮框（蓝色边框框住整行）
-          if (selectedNode && selectedNode.id === code) {
+          if (selectedNode && selectedNode.id === codeStr) {
             row.insert('rect', ':first-child').attr('class', 'sel-box')
               .attr('x', cx - COL_W / 2 + 6).attr('y', sy - 2)
               .attr('width', COL_W - 12).attr('height', 18)
@@ -312,7 +320,7 @@ function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onN
           sg.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
 
           // 选中蓝色边框（框住圆点+名称+涨跌幅）
-          if (selectedNode && selectedNode.id === code) {
+          if (selectedNode && selectedNode.id === codeStr) {
             const boxW = isRight ? 100 : 90;
             sg.insert('rect', ':first-child').attr('class', 'sel-box')
               .attr('x', isRight ? sx - 4 : sx - boxW + 4).attr('y', sy - 6)
