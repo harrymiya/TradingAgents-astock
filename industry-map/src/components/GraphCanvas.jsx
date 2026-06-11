@@ -15,111 +15,61 @@ function valueToColor(value, minVal = -10, maxVal = 10) {
   }
 }
 
-// 环节节点颜色（浅色调，不抢公司节点风头）
-const LINK_COLORS = ['#b79ad9', '#89abe8', '#7ec8e0', '#7fbf9f', '#dbb86d', '#e0877c', '#d99bb6', '#7e8fd6'];
+const LINK_COLORS = ['#b79ad9', '#89abe8', '#7ec8e0', '#7fbf9f', '#dbb86d', '#e0877c', '#d99bb6', '#7e8fd6', '#9ab87a', '#c9a06d'];
+const SECTION_COLORS = ['#58a6ff', '#7ec8e0', '#d29922', '#f0883e', '#3fb950', '#d99bb6'];
+
+/** 根据着色指标获取颜色和半径 */
+function getStockColorAndRadius(price, colorMetric) {
+  let metricVal, colorMin, colorMax;
+  switch (colorMetric) {
+    case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; break;
+    case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; break;
+    case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; break;
+    case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; break;
+    default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10;
+  }
+  const fillColor = valueToColor(metricVal, colorMin, colorMax);
+  const absVal = Math.abs(metricVal);
+  const r = Math.max(4, Math.min(10, 4 + (absVal / Math.max(Math.abs(colorMax), Math.abs(colorMin), 10)) * 6));
+  return { fillColor, r };
+}
 
 // ============================================================
-// 模式1：力导向图
+// 模式1：力导向图（原版保留）
 // ============================================================
-function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
-  const links_data = data['环节'];
+function buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
+  if (!industry || !industry.sections) return;
   const nodes = [];
   const links = [];
-  const nodeMap = {};
+  let idx = 0;
 
-  const linkNames = Object.keys(links_data);
-  const linkColorMap = {};
-  linkNames.forEach((name, i) => {
-    linkColorMap[name] = LINK_COLORS[i % LINK_COLORS.length];
-  });
-
-  let nodeIdx = 0;
-
-  for (const [linkName, linkData] of Object.entries(links_data)) {
-    const linkNode = {
-      id: 'link_' + linkName,
-      name: linkName,
-      type: 'link',
-      code: null,
-      barrier: linkData['壁垒'],
-      localRate: linkData['国产化率'],
-      stockCount: linkData['股票'].length,
-      upstream: linkData['上游'] || [],
-      downstream: linkData['下游'] || [],
-      desc: linkData['描述'],
-      color: linkColorMap[linkName],
-      r: 22 + linkData['壁垒'] * 4,
-      stocks: linkData['股票'].map(c => ({
-        code: c,
-        name: (stockPrices[c] && stockPrices[c].name) || c,
-      })),
-    };
-    nodes.push(linkNode);
-    nodeMap[linkNode.id] = nodeIdx;
-    nodeIdx++;
-
-    for (const code of linkData['股票']) {
-      const price = stockPrices[code] || {};
-      const feat = (featData && featData[code]) || {};
-
-      let metricVal, colorMin, colorMax, radMax;
-      switch (colorMetric) {
-        case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; radMax = 16; break;
-        case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; radMax = 18; break;
-        case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; radMax = 20; break;
-        case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; radMax = 16; break;
-        case 'rsi': metricVal = feat.rsi !== undefined ? feat.rsi : 0; colorMin = -2; colorMax = 2; radMax = 14; break;
-        case 's3_score': metricVal = feat.s3_score !== undefined ? feat.s3_score : 50; colorMin = 0; colorMax = 100; radMax = 18; break;
-        case 'composite': metricVal = feat.composite !== undefined ? feat.composite : 50; colorMin = 0; colorMax = 100; radMax = 18; break;
-        case 'pos_20d': metricVal = feat.pos_20d !== undefined ? feat.pos_20d : 50; colorMin = 0; colorMax = 100; radMax = 16; break;
-        case 'ma20_pct': metricVal = feat.ma20_pct !== undefined ? feat.ma20_pct : 0; colorMin = -20; colorMax = 20; radMax = 16; break;
-        default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10; radMax = 14;
-      }
-
-      const absVal = Math.abs(metricVal);
-      const r = Math.max(5, Math.min(radMax, 5 + (absVal / Math.max(Math.abs(colorMax || 10), Math.abs(colorMin || 10), 10)) * (radMax - 5)));
-
-      let fillColor;
-      if (colorMetric === 'rsi') fillColor = valueToColor(metricVal, -2, 2);
-      else if (colorMetric === 'composite' || colorMetric === 's3_score') fillColor = valueToColor(metricVal, 0, 100);
-      else fillColor = valueToColor(metricVal, colorMin, colorMax);
-
-      const stockNode = {
-        id: code,
-        name: price.name || code,
-        code: code,
-        type: 'stock',
-        price: price.price || 0,
-        chg: price.chg || 0,
-        yearChg: price.yearChg || 0,
-        volume: price.volume || 0,
-        amplitude: price.amplitude || 0,
-        linkName: linkName,
-        linkColor: linkColorMap[linkName],
-        r: r,
-        fillColor: fillColor,
-        feat: feat,
+  for (const sec of industry.sections) {
+    for (const link of sec.links) {
+      const linkNode = {
+        id: 'link_' + link.name, name: link.name, type: 'link', code: null,
+        r: 20, stocks: link.stocks || [],
+        color: LINK_COLORS[idx % LINK_COLORS.length],
       };
-      nodes.push(stockNode);
-      nodeMap[code] = nodeIdx;
-      nodeIdx++;
-      links.push({ source: code, target: 'link_' + linkName, type: 'belongs' });
-    }
+      nodes.push(linkNode);
+      idx++;
 
-    for (const up of linkData['上游']) {
-      if (links_data[up]) {
-        links.push({ source: 'link_' + up, target: 'link_' + linkName, type: 'flow' });
+      for (const code of (link.stocks || [])) {
+        const price = stockPrices[code] || {};
+        const { fillColor, r } = getStockColorAndRadius(price, colorMetric);
+        nodes.push({
+          id: code, name: price.name || code, code, type: 'stock',
+          price: price.price || 0, chg: price.chg || 0,
+          r, fillColor, linkName: link.name, linkColor: linkNode.color,
+        });
+        links.push({ source: code, target: 'link_' + link.name, type: 'belongs' });
       }
     }
   }
 
   const g = svg.append('g');
-
-  // 缩放 + 拖拽平移（鼠标左键按住拖动）
-  const zoom = d3.zoom()
-    .scaleExtent([0.3, 4])
-    .filter(event => !event.target.closest('.h-node'))
-    .on('zoom', (event) => { g.attr('transform', event.transform); });
+  const zoom = d3.zoom().scaleExtent([0.3, 4])
+    .filter(event => !event.target.closest('.f-node'))
+    .on('zoom', (event) => g.attr('transform', event.transform));
   svg.call(zoom);
 
   const simulation = d3.forceSimulation(nodes)
@@ -128,460 +78,280 @@ function buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collision', d3.forceCollide().radius(d => d.r + 8));
 
-  const defs = svg.append('defs');
-  defs.append('marker')
-    .attr('id', 'arrow').attr('viewBox', '0 -5 10 10').attr('refX', 20).attr('refY', 0)
-    .attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
-    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#30363d');
+  const linkG = g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
 
-  const linkG = g.append('g').selectAll('line')
-    .data(links).join('line')
-    .attr('class', 'link')
-    .attr('stroke', d => d.type === 'flow' ? '#30363d' : '#21262d')
-    .attr('stroke-width', d => d.type === 'flow' ? 1.5 : 1)
-    .attr('stroke-dasharray', d => d.type === 'belongs' ? '3,3' : 'none')
-    .attr('marker-end', d => d.type === 'flow' ? 'url(#arrow)' : null);
+  const nodeG = g.append('g').selectAll('.f-node').data(nodes).join('g').attr('class', 'f-node').style('cursor', 'pointer');
 
-  const nodeG = g.append('g').selectAll('.node')
-    .data(nodes).join('g').attr('class', 'node').style('cursor', 'pointer');
+  nodeG.filter(d => d.type === 'link').append('circle').attr('r', d => d.r).attr('fill', d => d.color).attr('fill-opacity', 0.25).attr('stroke', d => d.color).attr('stroke-width', 2.5);
+  nodeG.filter(d => d.type === 'link').append('text').attr('dy', 4).attr('text-anchor', 'middle').attr('fill', '#e6edf3').attr('font-size', 11).attr('font-weight', 600).text(d => d.name.length > 5 ? d.name.slice(0, 5) + '..' : d.name);
+  nodeG.filter(d => d.type === 'stock').append('circle').attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e').attr('fill-opacity', 1.0).attr('stroke', d => d.fillColor || '#8b949e').attr('stroke-width', 2.5);
+  nodeG.filter(d => d.type === 'stock').append('text').attr('dx', 8).attr('dy', 4).attr('fill', '#c9d1d9').attr('font-size', 9).text(d => d.name);
 
-  nodeG.filter(d => d.type === 'link').append('circle')
-    .attr('r', d => d.r).attr('fill', d => d.color).attr('fill-opacity', 0.25)
-    .attr('stroke', d => d.color).attr('stroke-width', 2.5).style('transition', 'r 0.15s');
-
-  nodeG.filter(d => d.type === 'link').append('circle')
-    .attr('r', d => d.r + 4).attr('fill', 'none')
-    .attr('stroke', d => d.color).attr('stroke-width', d => 1 + d.barrier * 0.5).attr('stroke-opacity', 0.3);
-
-  nodeG.filter(d => d.type === 'stock').append('circle')
-    .attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e').attr('fill-opacity', 1.0)
-    .attr('stroke', d => d.fillColor || '#8b949e').attr('stroke-width', 2.5).attr('stroke-opacity', 0.8);
-
-  nodeG.filter(d => d.type === 'link').append('text')
-    .attr('dy', 4).attr('text-anchor', 'middle').attr('fill', '#e6edf3')
-    .attr('font-size', 12).attr('font-weight', 600).attr('pointer-events', 'none')
-    .text(d => d.name.length > 5 ? d.name.slice(0, 5) + '..' : d.name);
-
-  nodeG.filter(d => d.type === 'stock').append('text')
-    .attr('dx', d => d.r + 5).attr('dy', 4).attr('fill', '#c9d1d9')
-    .attr('font-size', 10).attr('pointer-events', 'auto')
-    .text(d => d.name);
-
-  // 指标值标签（仅force模式用简短显示）
-  nodeG.filter(d => d.type === 'stock').append('text')
-    .attr('dx', d => d.r + 5).attr('dy', 16).attr('fill', '#8b949e')
-    .attr('font-size', 8).attr('pointer-events', 'auto')
-    .text(d => {
-      if (d.chg !== 0) return d.chgStr;
-      return '';
-    });
-
-  const linkLabels = g.append('g').selectAll('.link-label')
-    .data(links.filter(d => d.type === 'flow')).join('text')
-    .attr('class', 'link-label').attr('fill', '#6e7681').attr('font-size', 9)
-    .attr('text-anchor', 'middle').attr('pointer-events', 'none');
-
+  // 交互
   nodeG.on('mouseenter', function(event, d) {
-    const rect = svgRefCache.getBoundingClientRect();
-    onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top });
+    const rect = svg.node().getBoundingClientRect();
+    if (onTooltip) onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top });
   });
-  nodeG.on('mouseleave', (event, d) => {
-    // 鼠标移出节点，清tooltip
-    if (onTooltip) onTooltip(null);
-  });
-  nodeG.on('click', function(event, d) {
-    event.stopPropagation();
-    if (onNodeClick) onNodeClick(d);
-  });
-  svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
-
-  // 选中高亮：选中stock节点加蓝色矩形外框包围整行
-  if (selectedNode) {
-    // 先移除旧的选中框
-    nodeG.selectAll('.sel-box').remove();
-    // 给选中节点加矩形框
-    nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
-      const group = d3.select(this);
-      if (d.type === 'stock') {
-        const bw = 205, bh = 20;
-        group.insert('rect', ':first-child')
-          .attr('class', 'sel-box')
-          .attr('x', -8).attr('y', -10)
-          .attr('width', bw).attr('height', bh)
-          .attr('fill', 'none')
-          .attr('stroke', '#58a6ff')
-          .attr('stroke-width', 1.5)
-          .attr('rx', 4).attr('ry', 4);
-      } else {
-        // 环节节点用蓝色矩形框（力导向图用局部坐标）
-        group.insert('rect', ':first-child')
-          .attr('class', 'sel-box')
-          .attr('x', -(d.r || 22) - 8).attr('y', -(d.r || 22) - 8)
-          .attr('width', (d.r || 22) * 2 + 16).attr('height', (d.r || 22) * 2 + 16)
-          .attr('fill', 'none')
-          .attr('stroke', '#58a6ff')
-          .attr('stroke-width', 1.5)
-          .attr('rx', 4).attr('ry', 4);
-      }
-    });
-  } else {
-    nodeG.selectAll('.sel-box').remove();
-  }
-
-  nodeG.call(d3.drag()
-    .on('start', (event, d) => {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x; d.fy = d.y;
-    })
-    .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
-    .on('end', (event, d) => {
-      if (!event.active) simulation.alphaTarget(0);
-      d.fx = null; d.fy = null;
-    })
-  );
-
-  simulation.on('tick', () => {
-    linkG.attr('x1', d => {
-      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const r = (d.source.r || 5);
-      return dist > 0 ? d.source.x + dx / dist * r : d.source.x;
-    }).attr('y1', d => {
-      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const r = (d.source.r || 5);
-      return dist > 0 ? d.source.y + dy / dist * r : d.source.y;
-    }).attr('x2', d => {
-      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const r = (d.target.r || 5);
-      return dist > 0 ? d.target.x - dx / dist * r : d.target.x;
-    }).attr('y2', d => {
-      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const r = (d.target.r || 5);
-      return dist > 0 ? d.target.y - dy / dist * r : d.target.y;
-    });
-    nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
-    linkLabels.attr('x', d => (d.source.x + d.target.x) / 2)
-      .attr('y', d => (d.source.y + d.target.y) / 2).text(d => '↓');
-  });
-
-  setTimeout(() => {
-    const bounds = g.node()?.getBBox();
-    if (bounds) {
-      const scale = Math.min(width / (bounds.width + 100), height / (bounds.height + 100), 1.5);
-      const tx = (width - bounds.width * scale) / 2 - bounds.x * scale;
-      const ty = (height - bounds.height * scale) / 2 - bounds.y * scale;
-      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
-    }
-  }, 1500);
-}
-
-let svgRefCache = null;
-
-// ============================================================
-// 模式2：横向产业链布局（简化版）
-//  每level一列，环节用文字标题代替大圆点
-//  公司节点在每个环节标题下竖排列出
-// ============================================================
-function buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
-  try {
-  const links_data = data['环节'];
-  const linkNames = Object.keys(links_data);
-  const linkColorMap = {};
-  linkNames.forEach((name, i) => { linkColorMap[name] = LINK_COLORS[i % LINK_COLORS.length]; });
-
-  // --- 1. 拓扑排序 ---
-  const level = {};
-  const inDeg = {};
-  for (const name of linkNames) inDeg[name] = 0;
-  for (const [name, ld] of Object.entries(links_data)) {
-    for (const up of (ld['上游'] || [])) { if (links_data[up]) inDeg[name]++; }
-  }
-  let queue = [];
-  for (const name of linkNames) { if (inDeg[name] === 0) { level[name] = 0; queue.push(name); } }
-  const hasRel = linkNames.some(n => (links_data[n]['上游'] || []).length > 0 || (links_data[n]['下游'] || []).length > 0);
-  if (!hasRel) {
-    linkNames.forEach((name, idx) => { level[name] = idx; });
-  } else {
-    if (queue.length === 0) { level[linkNames[0]] = 0; queue = [linkNames[0]]; }
-    const visited = new Set(Object.keys(level));
-    while (queue.length > 0) {
-      const next = [];
-      for (const name of queue) {
-        for (const down of (links_data[name]['下游'] || [])) {
-          if (links_data[down] && !visited.has(down)) { level[down] = level[name] + 1; visited.add(down); next.push(down); }
-        }
-      }
-      queue = next;
-    }
-    const maxL = Math.max(...Object.values(level), 0);
-    for (const name of linkNames) { if (!visited.has(name)) { level[name] = maxL + 1; visited.add(name); } }
-  }
-
-  const levelGroups = {};
-  for (const [name, lvl] of Object.entries(level)) { if (!levelGroups[lvl]) levelGroups[lvl] = []; levelGroups[lvl].push(name); }
-  const sortedLevels = Object.keys(levelGroups).sort((a, b) => Number(a) - Number(b));
-
-  // --- 2. 布局参数 ---
-  const COL_W = 210, COL_GAP = 20, PADDING_TOP = 70, PADDING_BOTTOM = 20, PADDING_LEFT = 20, STOCK_H = 20, BETWEEN_LINK_H = 18;
-  const layoutW = sortedLevels.length * COL_W + (sortedLevels.length - 1) * COL_GAP;
-  const centerOffsetX = Math.max(0, (width - layoutW) / 2);
-
-  // --- 3. 计算列高 ---
-  const levelColH = {};
-  for (const lvl of sortedLevels) {
-    const names = levelGroups[lvl];
-    let total = 0;
-    const sortedNames = [...names].sort((a, b) => (links_data[b]['股票'].length) - (links_data[a]['股票'].length));
-    for (let i = 0; i < sortedNames.length; i++) {
-      const n = sortedNames[i];
-      total += 22 + links_data[n]['股票'].length * STOCK_H + (i < sortedNames.length - 1 ? BETWEEN_LINK_H : 0);
-    }
-    levelColH[lvl] = total;
-  }
-
-  const maxColH = Math.max(...Object.values(levelColH), 0);
-  const viewH = Math.max(height || 800, maxColH + PADDING_TOP + PADDING_BOTTOM);
-  const viewW = Math.max(width || 1200, layoutW + PADDING_LEFT + 20);
-  const offsetY = Math.max(0, (viewH - maxColH - PADDING_TOP - PADDING_BOTTOM) / 2) + PADDING_TOP;
-  svg.attr('viewBox', `0 0 ${viewW} ${viewH}`).style('width', '100%').style('height', '100%');
-
-  // --- 4. 构建节点 ---
-  const nodes = [], links = [];
-  const levelSortedGroups = {};
-  for (const [lvl, names] of Object.entries(levelGroups)) {
-    levelSortedGroups[lvl] = [...names].sort((a, b) => (links_data[b]['股票'].length) - (links_data[a]['股票'].length));
-  }
-  const levelX = {};
-  sortedLevels.forEach((lvl, idx) => { levelX[lvl] = centerOffsetX + PADDING_LEFT + idx * (COL_W + COL_GAP) + COL_W / 2; });
-
-  for (const lvl of sortedLevels) {
-    const names = levelSortedGroups[lvl];
-    const colCenterX = levelX[lvl];
-    const colLeft = colCenterX - COL_W / 2 + 10;
-    let yPos = offsetY;
-    for (const name of names) {
-      const color = linkColorMap[name];
-      const nStocks = links_data[name]['股票'].length;
-      const titleY = yPos + 12;
-      nodes.push({ id: 'link_' + name, name, type: 'link', code: null, barrier: links_data[name]['壁垒'] || 0, stockCount: nStocks, upstream: links_data[name]['上游'] || [], downstream: links_data[name]['下游'] || [], desc: links_data[name]['描述'], color, r: 0, x: colLeft, y: titleY, level: Number(lvl), stocks: [] });
-      let sy = titleY + 6;
-      for (const code of links_data[name]['股票']) {
-        const price = stockPrices[code] || {};
-        const feat = (featData && featData[code]) || {};
-        let metricVal, colorMin, colorMax, fillColor;
-        switch (colorMetric) {
-          case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; break;
-          case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; break;
-          case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; break;
-          case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; break;
-          default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10;
-        }
-        if (colorMetric === 'rsi') fillColor = valueToColor(metricVal, -2, 2);
-        else if (colorMetric === 'composite' || colorMetric === 's3_score') fillColor = valueToColor(metricVal, 0, 100);
-        else fillColor = valueToColor(metricVal, colorMin, colorMax);
-        nodes.push({ id: code, name: price.name || code, code: code.length >= 6 ? code.slice(-6) : code, codeFull: code, type: 'stock', price: price.price || 0, chg: price.chg || 0, yearChg: price.yearChg || 0, volume: price.volume || 0, amplitude: price.amplitude || 0, linkName: name, linkColor: color, r: 4, fillColor, x: colLeft + 6, y: sy + STOCK_H / 2, chgStr: (price.chg >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%', feat, level: Number(lvl) });
-        links.push({ source: code, target: 'link_' + name });
-        sy += STOCK_H;
-      }
-      for (const up of (links_data[name]['上游'] || [])) { if (linkNames.includes(up)) links.push({ source: 'link_' + up, target: 'link_' + name, type: 'flow' }); }
-      yPos += 22 + nStocks * STOCK_H + BETWEEN_LINK_H;
-    }
-  }
-
-  // --- 5. 绘制 ---
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.h-node')).on('zoom', (event) => { g.attr('transform', event.transform); }));
-  for (const lvl of sortedLevels) {
-    const cx = levelX[lvl];
-    g.append('rect').attr('x', cx - COL_W / 2).attr('y', offsetY - 10).attr('width', COL_W).attr('height', (levelColH[lvl] || 0) + 20).attr('fill', Number(lvl) % 2 === 0 ? '#161b22' : '#0d1117').attr('rx', 6).attr('opacity', 0.3);
-  }
-  const positions = ['上游', '中上游', '中游', '中下游', '下游', '终端'];
-  for (const lvl of sortedLevels) {
-    const cx = levelX[lvl];
-    g.append('text').attr('x', cx).attr('y', offsetY - 24).attr('text-anchor', 'middle').attr('fill', '#58a6ff').attr('font-size', 12).attr('font-weight', 700).text(positions[Math.min(Number(lvl), 5)] + '级');
-    g.append('line').attr('x1', cx - COL_W / 2 + 4).attr('y1', offsetY - 16).attr('x2', cx + COL_W / 2 - 4).attr('y2', offsetY - 16).attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
-  }
-  const defs = svg.append('defs');
-  defs.append('marker').attr('id', 'harrow').attr('viewBox', '0 -5 10 10').attr('refX', 18).attr('refY', 0).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto').append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
-  for (const link of links) {
-    if (link.type !== 'flow') continue;
-    const src = nodes.find(n => n.id === link.source);
-    const tgt = nodes.find(n => n.id === link.target);
-    if (!src || !tgt) continue;
-    g.append('line').attr('x1', levelX[src.level] + COL_W / 2).attr('y1', src.y).attr('x2', levelX[tgt.level] - COL_W / 2).attr('y2', tgt.y).attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('stroke-opacity', 0.5).attr('marker-end', 'url(#harrow)');
-  }
-
-  const nodeG = g.append('g').selectAll('.h-node').data(nodes).join('g').attr('class', 'h-node').style('cursor', 'pointer');
-  nodeG.filter(d => d.type === 'link').append('text').attr('x', d => d.x).attr('y', d => d.y).attr('fill', d => d.color).attr('font-size', 11).attr('font-weight', 700).attr('pointer-events', 'none').text(d => d.name.length > 10 ? d.name.slice(0, 10) + '..' : d.name);
-  nodeG.filter(d => d.type === 'link').append('rect').attr('x', d => d.x - 4).attr('y', d => d.y - 8).attr('width', 3).attr('height', 12).attr('rx', 1.5).attr('fill', d => d.color);
-  nodeG.filter(d => d.type === 'stock').append('circle').attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.r).attr('fill', d => d.fillColor || '#8b949e').attr('fill-opacity', 1.0).attr('stroke', d => d.fillColor || '#8b949e').attr('stroke-width', 2.5);
-  nodeG.filter(d => d.type === 'stock').append('text').attr('x', d => d.x + 8).attr('y', d => d.y + 3).attr('fill', '#c9d1d9').attr('font-size', 9).attr('pointer-events', 'auto').text(d => d.name.length > 6 ? d.name.slice(0, 6) + '..' : d.name);
-  nodeG.filter(d => d.type === 'stock').append('text').attr('x', d => d.x + 82).attr('y', d => d.y + 3).attr('fill', d => d.chg >= 0 ? '#ff6b6b' : '#51cf66').attr('font-size', 8).attr('pointer-events', 'auto').text(d => d.chgStr);
-  nodeG.filter(d => d.type === 'stock').append('text').attr('x', d => d.x + 124).attr('y', d => d.y + 3).attr('fill', '#6e7681').attr('font-size', 8).attr('pointer-events', 'auto').text(d => d.code);
-  nodeG.on('mouseenter', function(event, d) { const rect = svgRefCache.getBoundingClientRect(); onTooltip({ node: d, x: event.clientX - rect.left, y: event.clientY - rect.top }); });
   nodeG.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
   nodeG.on('click', function(event, d) { event.stopPropagation(); if (onNodeClick) onNodeClick(d); });
   svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
+
+  // 选中高亮
   if (selectedNode) {
-    nodeG.selectAll('.sel-box').remove();
     nodeG.filter(d => d.id === selectedNode.id).each(function(d) {
       const group = d3.select(this);
       group.insert('rect', ':first-child').attr('class', 'sel-box')
-        .attr('x', d.x - 6).attr('y', d.type === 'stock' ? d.y - 8 : d.y - 10)
-        .attr('width', d.type === 'stock' ? 155 : 160).attr('height', d.type === 'stock' ? 16 : 18)
+        .attr('x', d.type === 'stock' ? -6 : -(d.r || 20) - 4)
+        .attr('y', d.type === 'stock' ? -8 : -(d.r || 20) - 4)
+        .attr('width', d.type === 'stock' ? 150 : (d.r || 20) * 2 + 8)
+        .attr('height', d.type === 'stock' ? 16 : (d.r || 20) * 2 + 8)
         .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 4);
     });
   }
-} catch(e) { console.error('HorizontalGraph error:', e.message); }}
 
-// ============================================================
-// 模式3：三段式 — 上游/中游/下游三个大节点
-//  上游→中游→下游用箭头串联，每个大节点下展开子环节+公司
-// ============================================================
-function buildCompactGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
-  try {
-  const links_data = data['环节'];
-  const linkNames = Object.keys(links_data);
+  nodeG.call(d3.drag()
+    .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+    .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+  );
 
-  // --- 1. level分组并归并到3桶 ---
-  const level = {};
-  const inDeg = {};
-  for (const name of linkNames) inDeg[name] = 0;
-  for (const [name, ld] of Object.entries(links_data)) { for (const up of (ld['上游'] || [])) { if (links_data[up]) inDeg[name]++; } }
-  let queue = [];
-  for (const name of linkNames) { if (inDeg[name] === 0) { level[name] = 0; queue.push(name); } }
-  const hasRel = linkNames.some(n => (links_data[n]['上游'] || []).length > 0 || (links_data[n]['下游'] || []).length > 0);
-  if (!hasRel) { linkNames.forEach((name, idx) => { level[name] = Math.min(idx, 2); }); }
-  else {
-    if (queue.length === 0) { level[linkNames[0]] = 0; queue = [linkNames[0]]; }
-    const visited = new Set(Object.keys(level));
-    while (queue.length > 0) {
-      const next = [];
-      for (const name of queue) { for (const down of (links_data[name]['下游'] || [])) { if (links_data[down] && !visited.has(down)) { level[down] = level[name] + 1; visited.add(down); next.push(down); } } }
-      queue = next;
-    }
-    const maxL = Math.max(...Object.values(level), 0);
-    for (const name of linkNames) { if (!visited.has(name)) { level[name] = maxL + 1; visited.add(name); } }
-  }
-
-  const maxLevel = Math.max(...Object.values(level), 1);
-  const bucketSize = Math.max(1, Math.ceil((maxLevel + 1) / 3));
-  const finalLevels = { 0: [], 1: [], 2: [] };
-  for (const [name, lvl] of Object.entries(level)) {
-    const b = Math.min(Math.floor(lvl / bucketSize), 2);
-    finalLevels[b].push(name);
-  }
-
-  const LEVEL_NAMES = ['上游', '中游', '下游'];
-  const LEVEL_COLORS = ['#58a6ff', '#d29922', '#3fb950'];
-  const NODE_RADIUS = 36, COL_W = 220, COL_GAP = 40, PADDING_TOP = 80, STOCK_H = 18, BETWEEN_SUB_H = 16;
-
-  // 计算列高
-  const colHeights = {};
-  for (let b = 0; b <= 2; b++) {
-    let h = 0;
-    for (const name of finalLevels[b]) { h += 18 + (links_data[name] ? links_data[name]['股票'].length : 0) * STOCK_H + BETWEEN_SUB_H; }
-    colHeights[b] = h;
-  }
-
-  const layoutW = 3 * COL_W + 2 * COL_GAP;
-  const maxColH = Math.max(colHeights[0] || 0, colHeights[1] || 0, colHeights[2] || 0);
-  const viewH = Math.max(height || 800, maxColH + NODE_RADIUS * 2 + PADDING_TOP + 60);
-  const viewW = Math.max(width || 1200, layoutW + 20);
-  svg.attr('viewBox', `0 0 ${viewW} ${viewH}`).style('width', '100%').style('height', '100%');
-
-  const offsetX = Math.max(0, (viewW - layoutW) / 2);
-  const colXs = {};
-  for (let b = 0; b <= 2; b++) { colXs[b] = offsetX + b * (COL_W + COL_GAP) + COL_W / 2; }
-  const bigY = PADDING_TOP + 20;
-
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.c-node')).on('zoom', (event) => { g.attr('transform', event.transform); }));
-
-  // 箭头
-  const defs = svg.append('defs');
-  defs.append('marker').attr('id', 'carrow').attr('viewBox', '0 -5 10 10').attr('refX', NODE_RADIUS + 5).attr('refY', 0).attr('markerWidth', 8).attr('markerHeight', 8).attr('orient', 'auto').append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
-
-  for (let b = 0; b < 2; b++) {
-    g.append('line').attr('x1', colXs[b] + NODE_RADIUS).attr('y1', bigY).attr('x2', colXs[b+1] - NODE_RADIUS).attr('y2', bigY).attr('stroke', '#58a6ff').attr('stroke-width', 2.5).attr('stroke-opacity', 0.7).attr('marker-end', 'url(#carrow)');
-  }
-
-  const nodeG = g.append('g').selectAll('.c-node').data([0,1,2]).join('g').attr('class', 'c-node');
-  nodeG.each(function(bucket) {
-    const bg = d3.select(this);
-    const cx = colXs[bucket];
-    const names = finalLevels[bucket];
-    const color = LEVEL_COLORS[bucket];
-
-    bg.append('circle').attr('cx', cx).attr('cy', bigY).attr('r', NODE_RADIUS).attr('fill', color).attr('fill-opacity', 0.2).attr('stroke', color).attr('stroke-width', 3);
-    bg.append('text').attr('x', cx).attr('y', bigY + 5).attr('text-anchor', 'middle').attr('fill', '#e6edf3').attr('font-size', 16).attr('font-weight', 700).text(LEVEL_NAMES[bucket]);
-
-    let yPos = bigY + NODE_RADIUS + 16;
-    for (const name of names) {
-      const ld = links_data[name];
-      if (!ld) continue;
-      const subColor = LINK_COLORS[linkNames.indexOf(name) % LINK_COLORS.length];
-      bg.append('text').attr('x', cx - COL_W / 2 + 12).attr('y', yPos + 10).attr('fill', subColor).attr('font-size', 11).attr('font-weight', 600).text(name);
-      bg.append('rect').attr('x', cx - COL_W / 2 + 6).attr('y', yPos + 3).attr('width', 3).attr('height', 12).attr('rx', 1.5).attr('fill', subColor);
-      yPos += 18;
-      for (const code of ld['股票']) {
-        const price = stockPrices[code] || {};
-        const chg = price.chg || 0;
-        const fc = valueToColor(chg, -10, 10);
-        bg.append('circle').attr('cx', cx - COL_W / 2 + 16).attr('cy', yPos + 7).attr('r', 4).attr('fill', fc).attr('fill-opacity', 1.0).attr('stroke', fc).attr('stroke-width', 2);
-        bg.append('text').attr('x', cx - COL_W / 2 + 26).attr('y', yPos + 10).attr('fill', '#c9d1d9').attr('font-size', 9).text((price.name || code).length > 8 ? (price.name || code).slice(0, 8) + '..' : (price.name || code));
-        bg.append('text').attr('x', cx + COL_W / 2 - 60).attr('y', yPos + 10).attr('fill', chg >= 0 ? '#ff6b6b' : '#51cf66').attr('font-size', 8).text((chg >= 0 ? '+' : '') + chg.toFixed(1) + '%');
-        yPos += STOCK_H;
-      }
-      yPos += BETWEEN_SUB_H;
-    }
-    bg.insert('rect', ':first-child').attr('x', cx - COL_W / 2).attr('y', bigY - NODE_RADIUS).attr('width', COL_W).attr('height', Math.max(yPos - bigY + NODE_RADIUS + 10, NODE_RADIUS * 2 + 20)).attr('fill', bucket % 2 === 0 ? '#161b22' : '#0d1117').attr('rx', 8).attr('opacity', 0.25);
+  simulation.on('tick', () => {
+    linkG.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
   });
-  svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
-} catch(e) { console.error('CompactGraph error:', e.message); }}
+}
+
+// ============================================================
+// 模式2：横向表格（一级为文字标题，环节垂直列表，公司圆点）
+// ============================================================
+function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
+  try {
+    const sections = industry.sections || [];
+    if (sections.length === 0) return;
+
+    const COL_W = 210, COL_GAP = 24, STOCK_H = 18, BETWEEN_LINK_H = 14;
+    const PADDING_TOP = 70;
+
+    const linkColorMap = {};
+    let ci = 0;
+    for (const sec of sections) {
+      for (const link of sec.links) { linkColorMap[link.name] = LINK_COLORS[ci % LINK_COLORS.length]; ci++; }
+    }
+
+    const colHeights = {};
+    for (let i = 0; i < sections.length; i++) {
+      let h = 0;
+      for (const link of sections[i].links) {
+        h += 22 + (link.stocks || []).length * STOCK_H + BETWEEN_LINK_H;
+      }
+      colHeights[i] = h;
+    }
+
+    const layoutW = sections.length * COL_W + (sections.length - 1) * COL_GAP;
+    const maxColH = Math.max(...Object.values(colHeights), 0);
+    const viewH = Math.max(height || 800, PADDING_TOP + maxColH + 60);
+    const viewW = Math.max(width || 1200, layoutW + 40);
+    svg.attr('viewBox', `0 0 ${viewW} ${viewH}`).style('width', '100%').style('height', '100%');
+
+    const offsetX = Math.max(0, (viewW - layoutW) / 2);
+    const colX = {};
+    for (let i = 0; i < sections.length; i++) colX[i] = offsetX + i * (COL_W + COL_GAP) + COL_W / 2;
+
+    const g = svg.append('g');
+    svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.h-node')).on('zoom', (event) => g.attr('transform', event.transform)));
+
+    for (let i = 0; i < sections.length; i++) {
+      const cx = colX[i];
+      g.append('rect').attr('x', cx - COL_W / 2).attr('y', PADDING_TOP - 10).attr('width', COL_W).attr('height', (colHeights[i] || 0) + 20).attr('fill', i % 2 === 0 ? '#161b22' : '#0d1117').attr('rx', 6).attr('opacity', 0.25);
+      g.append('text').attr('x', cx).attr('y', PADDING_TOP - 14).attr('text-anchor', 'middle').attr('fill', '#8b949e').attr('font-size', 13).attr('font-weight', 700).text(sections[i].name);
+      g.append('line').attr('x1', cx - COL_W / 2 + 6).attr('y1', PADDING_TOP - 6).attr('x2', cx + COL_W / 2 - 6).attr('y2', PADDING_TOP - 6).attr('stroke', '#21262d').attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
+
+      let yPos = PADDING_TOP + 4;
+      for (const link of sections[i].links) {
+        const subColor = linkColorMap[link.name] || '#8b949e';
+        g.append('rect').attr('x', cx - COL_W / 2 + 4).attr('y', yPos).attr('width', 3).attr('height', 14).attr('rx', 1.5).attr('fill', subColor);
+        g.append('text').attr('x', cx - COL_W / 2 + 12).attr('y', yPos + 12).attr('fill', subColor).attr('font-size', 11).attr('font-weight', 700).text(link.name.length > 12 ? link.name.slice(0, 12) + '..' : link.name);
+
+        let sy = yPos + 18;
+        for (const code of (link.stocks || [])) {
+          const price = stockPrices[code] || {};
+          const { fillColor } = getStockColorAndRadius(price, colorMetric);
+          const nameLabel = (price.name || code).length > 10 ? (price.name || code).slice(0, 10) + '..' : (price.name || code);
+          const cgStr = ((price.chg || 0) >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%';
+          const cgColor = (price.chg || 0) >= 0 ? '#ff6b6b' : '#51cf66';
+
+          // 每行公司整组：圆点+名称+涨跌幅，整行可点击
+          const row = g.append('g').attr('class', 'stock-row').style('cursor', 'pointer');
+          row.append('circle').attr('cx', cx - COL_W / 2 + 14).attr('cy', sy + 7).attr('r', 4).attr('fill', fillColor).attr('fill-opacity', 1.0).attr('stroke', fillColor).attr('stroke-width', 2.5);
+          row.append('text').attr('x', cx - COL_W / 2 + 24).attr('y', sy + 10).attr('fill', '#c9d1d9').attr('font-size', 9).text(nameLabel);
+          row.append('text').attr('x', cx + COL_W / 2 - 55).attr('y', sy + 10).attr('fill', cgColor).attr('font-size', 8).text(cgStr);
+
+          // 点击整行
+          row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
+          row.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
+          row.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
+
+          // 选中高亮框（蓝色边框框住整行）
+          if (selectedNode && selectedNode.id === code) {
+            row.insert('rect', ':first-child').attr('class', 'sel-box')
+              .attr('x', cx - COL_W / 2 + 6).attr('y', sy - 2)
+              .attr('width', COL_W - 12).attr('height', 18)
+              .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 3);
+          }
+
+          sy += STOCK_H;
+        }
+        yPos = sy + BETWEEN_LINK_H;
+      }
+    }
+    svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
+  } catch (e) { console.error('HorizontalTable error:', e.message); }
+}
+
+// ============================================================
+// 模式3：星形放射
+// ============================================================
+function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
+  try {
+    const sections = industry.sections || [];
+    if (sections.length === 0) return;
+
+    const NODE_RADIUS = 36;
+    const LINK_RADIUS = 16;
+    const COL_W = 300;
+    const COL_GAP = 30;
+    const ORBIT_R = 120;
+    const STOCK_SPREAD = 55;
+
+    const layoutW = sections.length * COL_W + (sections.length - 1) * COL_GAP;
+    const viewH = Math.max(height || 800, 600);
+    const viewW = Math.max(width || 1200, layoutW + 40);
+    svg.attr('viewBox', `0 0 ${viewW} ${viewH}`).style('width', '100%').style('height', '100%');
+
+    const offsetX = Math.max(0, (viewW - layoutW) / 2);
+    const centerY = viewH / 2;
+    const colCenters = {};
+    for (let i = 0; i < sections.length; i++) {
+      colCenters[i] = { x: offsetX + i * (COL_W + COL_GAP) + COL_W / 2, y: centerY };
+    }
+
+    const g = svg.append('g');
+    svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.s-node')).on('zoom', (event) => g.attr('transform', event.transform)));
+
+    const defs = svg.append('defs');
+    defs.append('marker').attr('id', 'sarrow2').attr('viewBox', '0 -5 10 10').attr('refX', NODE_RADIUS + 6).attr('refY', 0).attr('markerWidth', 8).attr('markerHeight', 8).attr('orient', 'auto').append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
+
+    for (let i = 0; i < sections.length - 1; i++) {
+      const a = colCenters[i], b = colCenters[i + 1];
+      g.append('line').attr('x1', a.x + NODE_RADIUS).attr('y1', a.y).attr('x2', b.x - NODE_RADIUS).attr('y2', b.y).attr('stroke', '#58a6ff').attr('stroke-width', 3).attr('stroke-opacity', 0.7).attr('marker-end', 'url(#sarrow2)');
+    }
+
+    for (let i = 0; i < sections.length; i++) {
+      const sec = sections[i];
+      const cx = colCenters[i].x;
+      const cy = colCenters[i].y;
+      const colColor = SECTION_COLORS[i % SECTION_COLORS.length];
+      const links = sec.links || [];
+      const nLinks = links.length;
+
+      g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', ORBIT_R + STOCK_SPREAD + 30).attr('fill', i % 2 === 0 ? '#161b22' : '#0d1117').attr('opacity', 0.15);
+      g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', NODE_RADIUS).attr('fill', colColor).attr('fill-opacity', 0.25).attr('stroke', colColor).attr('stroke-width', 3);
+      g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', NODE_RADIUS + 4).attr('fill', 'none').attr('stroke', colColor).attr('stroke-width', 1).attr('stroke-opacity', 0.4);
+      g.append('text').attr('x', cx).attr('y', cy + 5).attr('text-anchor', 'middle').attr('fill', '#e6edf3').attr('font-size', 16).attr('font-weight', 700).text(sec.name.length > 8 ? sec.name.slice(0, 8) + '..' : sec.name);
+
+      if (nLinks === 0) continue;
+
+      const angleStep = (2 * Math.PI) / nLinks;
+      const startAngle = -Math.PI / 2;
+
+      for (let j = 0; j < nLinks; j++) {
+        const link = links[j];
+        const angle = startAngle + j * angleStep;
+        const lx = cx + ORBIT_R * Math.cos(angle);
+        const ly = cy + ORBIT_R * Math.sin(angle);
+        const subColor = LINK_COLORS[j % LINK_COLORS.length];
+        const stks = link.stocks || [];
+
+        g.append('line').attr('x1', cx).attr('y1', cy).attr('x2', lx).attr('y2', ly).attr('stroke', subColor).attr('stroke-width', 1).attr('stroke-opacity', 0.4).attr('stroke-dasharray', '3,3');
+        g.append('circle').attr('cx', lx).attr('cy', ly).attr('r', LINK_RADIUS).attr('fill', subColor).attr('fill-opacity', 0.25).attr('stroke', subColor).attr('stroke-width', 2);
+        g.append('text').attr('x', lx).attr('y', ly + 4).attr('text-anchor', 'middle').attr('fill', '#e6edf3').attr('font-size', 10).attr('font-weight', 600).text(link.name.length > 6 ? link.name.slice(0, 6) + '..' : link.name);
+
+        const stkAngle = angle;
+        const stkBaseR = LINK_RADIUS + 8;
+        for (let k = 0; k < stks.length; k++) {
+          const code = stks[k];
+          const price = stockPrices[code] || {};
+          const { fillColor } = getStockColorAndRadius(price, colorMetric);
+          const sOff = stkBaseR + k * 60;
+          const sx = lx + sOff * Math.cos(stkAngle);
+          const sy = ly + sOff * Math.sin(stkAngle);
+
+          // 公司整组：圆点+名称(tspan) -> 整组可点击
+          const sg = g.append('g').style('cursor', 'pointer');
+          sg.append('circle').attr('cx', sx).attr('cy', sy).attr('r', 4).attr('fill', fillColor).attr('fill-opacity', 1.0).attr('stroke', fillColor).attr('stroke-width', 2.5);
+
+          const isRight = Math.cos(stkAngle) > 0;
+          const tx = sx + (isRight ? 8 : -8);
+          const nameLabel = (price.name || code).length > 6 ? (price.name || code).slice(0, 6) + '..' : (price.name || code);
+          const cgStr = ((price.chg || 0) >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%';
+          const cgColor = (price.chg || 0) >= 0 ? '#ff6b6b' : '#51cf66';
+          const textEl = sg.append('text').attr('x', tx).attr('y', sy + 3).attr('text-anchor', isRight ? 'start' : 'end');
+          textEl.append('tspan').attr('fill', '#c9d1d9').text(nameLabel + ' ');
+          textEl.append('tspan').attr('fill', cgColor).text(cgStr);
+
+          // 点击整组
+          sg.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
+          sg.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
+          sg.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
+
+          // 选中蓝色边框（框住圆点+名称+涨跌幅）
+          if (selectedNode && selectedNode.id === code) {
+            const boxW = isRight ? 100 : 90;
+            sg.insert('rect', ':first-child').attr('class', 'sel-box')
+              .attr('x', isRight ? sx - 4 : sx - boxW + 4).attr('y', sy - 6)
+              .attr('width', boxW).attr('height', 16)
+              .attr('fill', 'none').attr('stroke', '#58a6ff').attr('stroke-width', 1.5).attr('rx', 3);
+          }
+        }
+      }
+    }
+    svg.on('click', () => { if (onNodeClick) onNodeClick(null); });
+  } catch (e) { console.error('StarLayout error:', e.message); }
+}
 
 // ============================================================
 // 主组件
 // ============================================================
 export default function GraphCanvas({
-  layoutMode, industry, industryData, stockPrices, featData,
+  layoutMode, industry, stockPrices,
   colorMetric, onTooltip, onNodeClick, selectedNode
 }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
 
   const buildGraph = useCallback(() => {
-    const data = industryData[industry];
-    if (!data || !svgRef.current || !data['环节']) return;
-
+    if (!industry || !svgRef.current) return;
     const svg = d3.select(svgRef.current);
     const container = containerRef.current;
     const width = container.clientWidth || 1200;
     const height = container.clientHeight || 800;
-
     svg.selectAll('*').remove();
-    svgRefCache = container;
 
-    if (layoutMode === 'horizontal') {
-      buildHorizontalGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
-    } else if (layoutMode === 'compact') {
-      buildCompactGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
-    } else {
-      buildForceGraph(svg, data, industry, stockPrices, featData, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
+    if (layoutMode === 'force') {
+      buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
+    } else if (layoutMode === 'horizontal') {
+      buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
+    } else if (layoutMode === 'star') {
+      buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
     }
-  }, [layoutMode, industry, industryData, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode]);
+  }, [layoutMode, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode]);
 
+  useEffect(() => { buildGraph(); }, [buildGraph]);
   useEffect(() => {
-    buildGraph();
-  }, [buildGraph]);
-
-  useEffect(() => {
-    const handleResize = () => buildGraph();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const h = () => buildGraph();
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
   }, [buildGraph]);
 
   return (

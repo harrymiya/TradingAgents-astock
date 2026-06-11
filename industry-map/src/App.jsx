@@ -4,12 +4,9 @@ import GraphCanvas from './components/GraphCanvas';
 import Controls from './components/Controls';
 import Tooltip from './components/Tooltip';
 import DetailPanel from './components/DetailPanel';
-import RevealPanel from './components/RevealPanel';
-import IndustrySwitcher from './components/IndustrySwitcher';
 import KlinePanel from './components/KlinePanel';
-import industryData from './data/industry_data.json';
-import priceData from './data/price_data.json';
-import featData from './data/feat_data.json';
+import frameworksData from './data/frameworks_data.json';
+import stockNames from './data/stock_names.json';
 import './App.css';
 
 const API_BASE = 'https://qt.gtimg.cn/q=';
@@ -18,44 +15,31 @@ const BATCH_SIZE = 30;
 function getInitParams() {
   const hash = window.location.hash.replace('#', '');
   const params = new URLSearchParams(hash);
+  let savedMode = localStorage.getItem('layoutMode') || 'horizontal';
+  if (params.get('mode') === 'horizontal' || params.get('mode') === 'force' || params.get('mode') === 'star') {
+    savedMode = params.get('mode');
+  }
+  const keys = Object.keys(frameworksData);
   return {
-    industry: params.get('industry') || '人形机器人',
+    industry: params.get('industry') || (keys[0] || ''),
     metric: params.get('metric') || 'chg',
-    label: params.get('label') || 'both',
+    layout: savedMode,
   };
 }
 
-function buildCodeToIndustryMap(data) {
-  const map = {};
-  for (const [indName, indData] of Object.entries(data)) {
-    if (indName.startsWith('_') || !indData['环节']) continue;
-    for (const [linkName, linkData] of Object.entries(indData['环节'])) {
-      for (const c of (linkData['股票'] || [])) {
-        if (/^\d{6}$/.test(c)) {
-          if (!map[c]) map[c] = [];
-          if (!map[c].includes(indName)) map[c].push(indName);
-        }
+function collectCodes(industry) {
+  if (!industry || !industry.sections) return [];
+  const codes = [];
+  for (const sec of industry.sections) {
+    for (const link of sec.links) {
+      for (const c of (link.stocks || [])) {
+        if (/^\d{6}$/.test(c)) codes.push(c);
       }
     }
   }
-  return map;
+  return [...new Set(codes)];
 }
 
-function getIndustryCodes(data, industryName) {
-  const indData = data[industryName];
-  if (!indData || !indData['环节']) return [];
-  const codes = [];
-  for (const [linkName, linkData] of Object.entries(indData['环节'])) {
-    for (const c of linkData['股票']) {
-      if (/^\d{6}$/.test(c)) codes.push(c);
-    }
-  }
-  return codes;
-}
-
-const codeToIndustry = buildCodeToIndustryMap(industryData);
-
-/** 批量拉腾讯API实时行情 */
 async function batchFetchQtCodes(codes) {
   if (!codes || codes.length === 0) return {};
   const results = {};
@@ -74,19 +58,17 @@ async function batchFetchQtCodes(codes) {
         const codeMatch = rawCode.match(/(\d{6})/);
         const code = codeMatch ? codeMatch[1] : rawCode;
         if (!code) continue;
-        const price = parseFloat(parts[3]) || 0;
-        const chg = parseFloat(parts[32]) || 0;
-        const yearChg = parseFloat(parts[69]) || 0;
-        const volume = parseInt(parts[6]) || 0;
-        const high = parseFloat(parts[33]) || 0;
-        const low = parseFloat(parts[34]) || 0;
-        const amplitude = high && low ? ((high - low) / low * 100) : 0;
-        const pe = parseFloat(parts[39]) || 0;
-        const pb = parseFloat(parts[48]) || 0;
+        const name = parts[1] || stockNames[code] || code;
         results[code] = {
-          price, chg, yearChg, monthChg: chg,
-          volume, amplitude, pe, pb,
-          name: parts[1] || code,
+          price: parseFloat(parts[3]) || 0,
+          chg: parseFloat(parts[32]) || 0,
+          yearChg: parseFloat(parts[69]) || 0,
+          volume: parseInt(parts[6]) || 0,
+          amplitude: (parseFloat(parts[33]) && parseFloat(parts[34])) ?
+            ((parseFloat(parts[33]) - parseFloat(parts[34])) / parseFloat(parts[34]) * 100) : 0,
+          pe: parseFloat(parts[39]) || 0,
+          pb: parseFloat(parts[48]) || 0,
+          name,
         };
       }
     } catch (e) {
@@ -100,60 +82,42 @@ export default function App() {
   const init = getInitParams();
   const [currentIndustry, setCurrentIndustry] = useState(init.industry);
   const [colorMetric, setColorMetric] = useState(init.metric);
-  const [layoutMode, setLayoutMode] = useState('horizontal');
-  const [stockPrices, setStockPrices] = useState(priceData.prices || {});
+  const [layoutMode, setLayoutMode] = useState(init.layout);
+  const [stockPrices, setStockPrices] = useState({});
   const [tooltip, setTooltip] = useState(null);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString('zh-CN'));
-  // 刷新计数器：每次刷新+1，传给子组件触发重拉
-  const [refreshKey, setRefreshKey] = useState(0);
-
   const [selectedNode, setSelectedNode] = useState(null);
+  const [klineStock, setKlineStock] = useState(null);
   const [detailHistory, setDetailHistory] = useState([]);
-  const [screeningInfo, setScreeningInfo] = useState(null);
-  const [screeningCode, setScreeningCode] = useState(null);
-  const [availableChains, setAvailableChains] = useState([]);
-
-  // K线面板状态：选中公司时显示日K线
-  const [klineStock, setKlineStock] = useState(null); // { code, name }
 
   const graphRef = useRef(null);
-  const autoRefreshRef = useRef(null);
 
-  // 搜集当前需要拉取的所有股票代码
   const getQryCodes = useCallback(() => {
-    const indCodes = currentIndustry ? getIndustryCodes(industryData, currentIndustry) : [];
-    return [...new Set([...indCodes])];
+    return collectCodes(frameworksData[currentIndustry]);
   }, [currentIndustry]);
 
   const fetchPrices = useCallback(async () => {
     const codes = getQryCodes();
     if (codes.length === 0) {
       setLastUpdate(new Date().toLocaleTimeString('zh-CN'));
-      setRefreshKey(k => k + 1);
       return;
     }
-
     setLoading(true);
     const results = await batchFetchQtCodes(codes);
     setStockPrices(prev => ({ ...prev, ...results }));
     setLastUpdate(new Date().toLocaleTimeString('zh-CN'));
-    setRefreshKey(k => k + 1);
     setLoading(false);
   }, [getQryCodes]);
 
-  // 首次加载 + 切换产业链时拉数据
-  useEffect(() => {
-    fetchPrices();
-  }, [currentIndustry, fetchPrices]);
+  useEffect(() => { fetchPrices(); }, [currentIndustry, fetchPrices]);
 
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
-    setDetailHistory([]);
-    setScreeningInfo(null);
     setTooltip(null);
-    // 如果是公司节点，显示K线
-    if (node.type === 'stock' && node.code) {
+    setDetailHistory([]);
+    // 公司节点显示K线
+    if (node && node.code && /^\d{6}$/.test(node.code)) {
       setKlineStock({ code: node.code, name: node.name || node.code });
     } else {
       setKlineStock(null);
@@ -162,7 +126,6 @@ export default function App() {
 
   const handleSelectStock = useCallback(({ code, name, linkName }) => {
     setDetailHistory(prev => [...prev, { code, name, linkName }]);
-    // 选中的公司也显示K线
     setKlineStock({ code, name: name || code });
   }, []);
 
@@ -170,44 +133,14 @@ export default function App() {
     setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
-  const handleSelectScreening = useCallback((item) => {
-    const code = item.code;
-    const chains = codeToIndustry[code] || [];
-    setScreeningCode(code);
-    setAvailableChains(chains);
-    setKlineStock({ code, name: item.name || code });
-
-    if (chains.length > 0) {
-      setCurrentIndustry(chains[0]);
-      setSelectedNode({ code, name: item.name, type: 'stock', id: code });
-      setScreeningInfo({
-        code: item.code, name: item.name,
-        strategy: item.strategy, detail: item.detail,
-        chg: item.chg, close: item.close,
-      });
-    } else {
-      setCurrentIndustry(null);
-      setSelectedNode(null);
-      setScreeningInfo(null);
-    }
-    setDetailHistory([]);
-  }, []);
-
-  const handleSwitchIndustry = useCallback((newIndustry) => {
-    setCurrentIndustry(newIndustry);
-  }, []);
-
-  const hasIndustry = currentIndustry && industryData[currentIndustry] && industryData[currentIndustry]['环节'];
+  const currentData = frameworksData[currentIndustry];
 
   return (
     <div className="app">
       <Sidebar
-        industries={industryData}
+        industries={frameworksData}
         current={currentIndustry}
         onSelect={setCurrentIndustry}
-        onSelectScreening={handleSelectScreening}
-        selectedCode={screeningCode}
-        refreshKey={refreshKey}
       />
       <div className="main">
         <Controls
@@ -220,35 +153,25 @@ export default function App() {
           lastUpdate={lastUpdate}
         />
         <div className="graph-container" ref={graphRef}>
-          {availableChains.length > 1 && screeningCode && (
-            <IndustrySwitcher
-              chains={availableChains}
-              current={currentIndustry}
-              onSwitch={handleSwitchIndustry}
-            />
-          )}
           <div className="graph-canvas-wrap">
-            {hasIndustry ? (
+            {currentData ? (
               <GraphCanvas
                 layoutMode={layoutMode}
-                industry={currentIndustry}
-                industryData={industryData}
+                industry={currentData}
                 stockPrices={stockPrices}
-                featData={featData}
                 colorMetric={colorMetric}
                 onTooltip={setTooltip}
                 onNodeClick={handleNodeClick}
                 selectedNode={selectedNode}
               />
-            ) : screeningCode ? (
-              <div className="no-industry-hint">该股票暂无匹配的产业链</div>
-            ) : null}
+            ) : (
+              <div className="no-industry-hint">请选择产业链</div>
+            )}
             {tooltip && (
               <Tooltip data={tooltip} onClose={() => setTooltip(null)} />
             )}
           </div>
         </div>
-        {/* K线面板：悬浮在拓扑图下方居中位置 */}
         {klineStock && (
           <KlinePanel
             code={klineStock.code}
@@ -260,13 +183,11 @@ export default function App() {
       <DetailPanel
         selectedNode={selectedNode}
         stockPrices={stockPrices}
-        stockIndustry={{}}
         industryName={currentIndustry}
-        industryData={industryData}
+        industryData={frameworksData}
         onSelectStock={handleSelectStock}
         onBack={handleBack}
         history={detailHistory}
-        screeningInfo={screeningInfo}
       />
     </div>
   );

@@ -1,0 +1,830 @@
+{
+  "viewInfo": {
+    "id": "505f68710a96464cadb0-04830ab7f684",
+    "name": "CPO全产业链",
+    "description": "CPO及其上游——原材料→设备→制造→应用",
+    "nodeCount": 19,
+    "edgeCount": 20,
+    "tags": [
+      "[]"
+    ],
+    "updateTime": "2026-06-11 12:00:00",
+    "ownerNick": "-",
+    "ownerId": 23709
+  },
+  "edges": [
+    {
+      "from": "6a3af4c7cf2f4415821c-7f1e9272c98c",
+      "to": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "to": "fab1971a38114e5a94b1-db362f12e4d7",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "to": "09a68a639ff84b43b5c0-c6bbc7a41568",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "to": "0b3a3a3ce11c4de486a6-fb084be50269",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "to": "e086b3b3794146f1a0b0-04ee2fc5b3f1",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "to": "5d864586671e467d8bf0-9ae84490d8a3",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "6a3af4c7cf2f4415821c-7f1e9272c98c",
+      "to": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "to": "467cbc57b78a4485bfd2-499842a3eccd",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "to": "64bd2ca23bd4481590c7-414d8f7cbfe8",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "to": "a1fb77fa053046bc95a7-f59d342f76e3",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "to": "b48cc1a910bd4f268d2f-7cbeab7117e4",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "to": "69717a9a02da467e8423-d74e292fbc73",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "6a3af4c7cf2f4415821c-7f1e9272c98c",
+      "to": "4cf959dcc51a46578510-9780172b617c",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "4cf959dcc51a46578510-9780172b617c",
+      "to": "c46fe48c9c4d464981ec-f2dbee1af5f5",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "4cf959dcc51a46578510-9780172b617c",
+      "to": "da14dbc114294a628a4b-86ee53fb8f90",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "4cf959dcc51a46578510-9780172b617c",
+      "to": "21962ae7801942749858-4185507c995b",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "4cf959dcc51a46578510-9780172b617c",
+      "to": "1c10c64bba9c4fcbbb60-c6c4e87f7f52",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "4cf959dcc51a46578510-9780172b617c",
+      "to": "b94afcb7c6b44ed08107-3e66038e7021",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "to": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "to": "4cf959dcc51a46578510-9780172b617c",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "6a3af4c7cf2f4415821c-7f1e9272c98c",
+      "fname": "CPO全产业链",
+      "org": null,
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "root",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": null,
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "391ea2cf188c4a018a8a-c5ca3f88b073",
+      "fname": "上游原材料",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": -300,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "fab1971a38114e5a94b1-db362f12e4d7",
+      "fname": "硅基材料",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "09a68a639ff84b43b5c0-c6bbc7a41568",
+      "fname": "光芯片",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "0b3a3a3ce11c4de486a6-fb084be50269",
+      "fname": "激光器",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "e086b3b3794146f1a0b0-04ee2fc5b3f1",
+      "fname": "光电探测器",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "5d864586671e467d8bf0-9ae84490d8a3",
+      "fname": "高速电芯片",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "f9ebbc2fcaf64fbab068-04fbe8c3916e",
+      "fname": "上游设备",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": -50,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "467cbc57b78a4485bfd2-499842a3eccd",
+      "fname": "光刻机",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "64bd2ca23bd4481590c7-414d8f7cbfe8",
+      "fname": "刻蚀设备",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "a1fb77fa053046bc95a7-f59d342f76e3",
+      "fname": "封装设备",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "b48cc1a910bd4f268d2f-7cbeab7117e4",
+      "fname": "测试设备",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "69717a9a02da467e8423-d74e292fbc73",
+      "fname": "清洗设备",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "4cf959dcc51a46578510-9780172b617c",
+      "fname": "中游制造",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": 200,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "c46fe48c9c4d464981ec-f2dbee1af5f5",
+      "fname": "CPO模块制造",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "da14dbc114294a628a4b-86ee53fb8f90",
+      "fname": "光互连组件",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "21962ae7801942749858-4185507c995b",
+      "fname": "高速PCB板",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "1c10c64bba9c4fcbbb60-c6c4e87f7f52",
+      "fname": "散热系统",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "b94afcb7c6b44ed08107-3e66038e7021",
+      "fname": "电源管理模块",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    }
+  ]
+}

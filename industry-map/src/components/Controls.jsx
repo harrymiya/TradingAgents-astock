@@ -9,7 +9,6 @@ export default function Controls({
   return (
     <div className="controls">
       <div className="controls-left">
-        <label>模式:</label>
         <div className="mode-switch">
           <button
             className={`mode-btn ${layoutMode === 'force' ? 'active' : ''}`}
@@ -28,7 +27,7 @@ export default function Controls({
           <button
             className={`mode-btn ${layoutMode === 'horizontal' ? 'active' : ''}`}
             onClick={() => onLayoutModeChange('horizontal')}
-            title="横向上下游流水线图"
+            title="横向产业链布局"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <rect x="1" y="3" width="3" height="8" rx="1" fill="currentColor"/>
@@ -44,24 +43,29 @@ export default function Controls({
             横向
           </button>
           <button
-            className={`mode-btn ${layoutMode === 'compact' ? 'active' : ''}`}
-            onClick={() => onLayoutModeChange('compact')}
-            title="三段式：上游→中游→下游串联"
+            className={`mode-btn ${layoutMode === 'star' ? 'active' : ''}`}
+            onClick={() => onLayoutModeChange('star')}
+            title="星形放射：一级节点为圆心，子环节四面放射"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="0.5" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
-              <rect x="5.5" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
-              <rect x="10.5" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
-              <line x1="3.5" y1="7" x2="5.5" y2="7" stroke="currentColor" strokeWidth="1"/>
-              <polygon points="4.5,6.5 5,7 4.5,7.5" fill="currentColor"/>
-              <line x1="8.5" y1="7" x2="10.5" y2="7" stroke="currentColor" strokeWidth="1"/>
-              <polygon points="9.5,6.5 10,7 9.5,7.5" fill="currentColor"/>
+              <circle cx="3" cy="3" r="2.5" fill="currentColor"/>
+              <circle cx="7" cy="3" r="2.5" fill="currentColor"/>
+              <circle cx="11" cy="3" r="2.5" fill="currentColor"/>
+              <line x1="5.5" y1="3" x2="4.5" y2="3" stroke="currentColor" strokeWidth="1"/>
+              <line x1="9.5" y1="3" x2="8.5" y2="3" stroke="currentColor" strokeWidth="1"/>
+              <polygon points="6,2.5 6.5,3 6,3.5" fill="currentColor"/>
+              <polygon points="10,2.5 10.5,3 10,3.5" fill="currentColor"/>
+              <circle cx="3" cy="9" r="1.2" fill="currentColor" opacity="0.6"/>
+              <circle cx="3" cy="11.5" r="1.2" fill="currentColor" opacity="0.6"/>
+              <circle cx="1.5" cy="10.5" r="1.2" fill="currentColor" opacity="0.6"/>
+              <circle cx="4.5" cy="10.5" r="1.2" fill="currentColor" opacity="0.6"/>
+              <circle cx="7" cy="9" r="1.2" fill="currentColor" opacity="0.6"/>
+              <circle cx="11" cy="9" r="1.2" fill="currentColor" opacity="0.6"/>
             </svg>
-            三段式
+            星形
           </button>
         </div>
       </div>
-
       <div className="controls-center">
         <label>着色:</label>
         <select value={colorMetric} onChange={e => onColorMetricChange(e.target.value)}>
@@ -69,18 +73,11 @@ export default function Controls({
           <option value="yearChg">年度涨跌</option>
           <option value="volume">成交量</option>
           <option value="amplitude">振幅</option>
-          <option value="rsi">超买超卖</option>
-          <option value="s3_score">S3评分</option>
-          <option value="composite">综合评分</option>
-          <option value="pos_20d">20日位置</option>
-          <option value="ma20_pct">均线偏离</option>
         </select>
       </div>
-
       <button className="refresh-btn" onClick={onRefresh} disabled={loading}>
         {loading ? '⏳ 刷新中...' : '🔄 刷新'}
       </button>
-
       <div className="legend">
         <span className="legend-item">
           <span className="legend-color" style={{background: '#1a6bff'}}></span>低/卖
@@ -92,7 +89,6 @@ export default function Controls({
           <span className="legend-color" style={{background: '#ff2d2d'}}></span>高/买
         </span>
       </div>
-
       <div className="update-time">🕐 {lastUpdate}</div>
     </div>
   );

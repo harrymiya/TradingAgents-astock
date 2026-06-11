@@ -1,0 +1,832 @@
+{
+  "viewInfo": {
+    "id": "ai-v1-20260611",
+    "name": "AI算力",
+    "description": "AI算力全产业链——AI训练推理芯片→服务器设备→算力平台",
+    "nodeCount": 19,
+    "edgeCount": 20,
+    "tags": [
+      "AI",
+      "算力",
+      "芯片"
+    ],
+    "updateTime": "2026-06-11 12:00:00",
+    "ownerNick": "-",
+    "ownerId": 23709
+  },
+  "edges": [
+    {
+      "from": "ai-root-00000000000000000000",
+      "to": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "to": "ai-link-e9190086860ea84730cf-99e5881508ec",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "to": "ai-link-49aa1ff2e4639ce0fe2d-f7978597d184",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "to": "ai-link-79237f5558d030088a77-628484eea54e",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "to": "ai-link-8d114dc06f726f327b06-601d4715a1ea",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "to": "ai-link-dba42201239a39ad3770-03c7b12e3afe",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-root-00000000000000000000",
+      "to": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "to": "ai-link-cd305f5784a93349fbd3-8f7ace040513",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "to": "ai-link-39ce718baa411863902c-6a8ae14312de",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "to": "ai-link-545481c6f8d258d6f0a1-7e670cf481b2",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "to": "ai-link-57351324d7267699bfb7-5579e431c9d2",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "to": "ai-link-871858d158513f9badeb-5357b1c78715",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-root-00000000000000000000",
+      "to": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "to": "ai-link-535882478d3c36d01c5a-c7c235d859ad",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "to": "ai-link-e466a2a4a7dd6ffce7da-50219b888329",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "to": "ai-link-89b740affda9f4338c8f-384a7782f8d6",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "to": "ai-link-f3bc098166adc19bc1e3-a101fb46a113",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "to": "ai-link-dcee8a34c3d7da8525f9-19c7dcccd9f0",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "to": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "to": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ai-root-00000000000000000000",
+      "fname": "AI算力",
+      "org": null,
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "root",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "AI算力全产业链——AI训练推理芯片→服务器设备→算力平台",
+      "url": null,
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-sec-cf31c3df5d67cfadf121-67202db0adac",
+      "fname": "上游芯片",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": -300,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-e9190086860ea84730cf-99e5881508ec",
+      "fname": "AI训练芯片",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-49aa1ff2e4639ce0fe2d-f7978597d184",
+      "fname": "AI推理芯片",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-79237f5558d030088a77-628484eea54e",
+      "fname": "高带宽存储HBM",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-8d114dc06f726f327b06-601d4715a1ea",
+      "fname": "光模块与光芯片",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-dba42201239a39ad3770-03c7b12e3afe",
+      "fname": "GPU封装基板",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-sec-ab152037715b429629e5-080b6f868933",
+      "fname": "中游设备",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-cd305f5784a93349fbd3-8f7ace040513",
+      "fname": "AI服务器",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-39ce718baa411863902c-6a8ae14312de",
+      "fname": "高速交换机",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-545481c6f8d258d6f0a1-7e670cf481b2",
+      "fname": "液冷散热系统",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-57351324d7267699bfb7-5579e431c9d2",
+      "fname": "高功率电源",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-871858d158513f9badeb-5357b1c78715",
+      "fname": "数据中心光互连",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-sec-2a66eb6ce951e2d42cc5-7b3e5141950d",
+      "fname": "下游算力平台",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": 300,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-535882478d3c36d01c5a-c7c235d859ad",
+      "fname": "数据中心运营",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-e466a2a4a7dd6ffce7da-50219b888329",
+      "fname": "云计算平台",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-89b740affda9f4338c8f-384a7782f8d6",
+      "fname": "边缘计算",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-f3bc098166adc19bc1e3-a101fb46a113",
+      "fname": "算力调度平台",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "ai-link-dcee8a34c3d7da8525f9-19c7dcccd9f0",
+      "fname": "AI推理服务平台",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    }
+  ]
+}

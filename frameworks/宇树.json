@@ -1,0 +1,831 @@
+{
+  "viewInfo": {
+    "id": "yushu-v3-20260611",
+    "name": "宇树",
+    "description": "人形机器人产业链——上游原材料→上游核心部件→中游制造",
+    "nodeCount": 19,
+    "edgeCount": 20,
+    "tags": [
+      "人形机器人",
+      "机器人"
+    ],
+    "updateTime": "2026-06-11 12:00:00",
+    "ownerNick": "-",
+    "ownerId": 23709
+  },
+  "edges": [
+    {
+      "from": "yushu-root-00000000000000000000",
+      "to": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "to": "yushu-link-826c966921592ef63e81-2c3fe4de5943",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "to": "yushu-link-ab5443f470e49b75d3c4-06953316b73c",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "to": "yushu-link-dcbcf93e10102ba7a9b3-7dcb139d4a21",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "to": "yushu-link-b05cbb609e2f08dc5c1f-5b798f645911",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "to": "yushu-link-a6ea4a2f84fee711f9ad-fd852a789d8c",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-root-00000000000000000000",
+      "to": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "to": "yushu-link-d087792fcf788670281e-9bc503cffbbb",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "to": "yushu-link-8a2ff4db104a33eb778d-da030ff5288a",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "to": "yushu-link-f06839724844f5d139a9-d99d65c9ef4b",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "to": "yushu-link-c229d2cbc081a6b38c5e-3a89a6392d9c",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "to": "yushu-link-96c060eb4669224eea4e-8d2545d051e1",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-root-00000000000000000000",
+      "to": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "to": "yushu-link-03d85db5505a07dfba11-f27fd1c03597",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "to": "yushu-link-888baef8c7bc9c13f88c-bba6a6d2eb41",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "to": "yushu-link-faadd5fd2499430227d1-bae3c2c6f740",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "to": "yushu-link-6cfd1ac745598c0072af-48f52f9cb3b2",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "to": "yushu-link-d5134c7e9fe39774115c-bf16701fe473",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "to": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    },
+    {
+      "from": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "to": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "userConfirmed": true,
+      "status": 1,
+      "meta": {
+        "automatic": true,
+        "smooth": 0,
+        "userMarkedInvisible": 0
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "yushu-root-00000000000000000000",
+      "fname": "宇树",
+      "org": null,
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "root",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "人形机器人全产业链",
+      "url": null,
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-sec-2a6986e9212d8992cd1b-bf785522b76d",
+      "fname": "上游原材料",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": -300,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-826c966921592ef63e81-2c3fe4de5943",
+      "fname": "金属材料",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-ab5443f470e49b75d3c4-06953316b73c",
+      "fname": "电子元器件",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-dcbcf93e10102ba7a9b3-7dcb139d4a21",
+      "fname": "传感器",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-b05cbb609e2f08dc5c1f-5b798f645911",
+      "fname": "电池",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-a6ea4a2f84fee711f9ad-fd852a789d8c",
+      "fname": "精密轴承",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-sec-e2f0eae7beca43d5b14c-bd47c45ed27d",
+      "fname": "上游核心部件",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-d087792fcf788670281e-9bc503cffbbb",
+      "fname": "伺服电机",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-8a2ff4db104a33eb778d-da030ff5288a",
+      "fname": "减速器",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-f06839724844f5d139a9-d99d65c9ef4b",
+      "fname": "控制器",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-c229d2cbc081a6b38c5e-3a89a6392d9c",
+      "fname": "嵌入式系统",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-96c060eb4669224eea4e-8d2545d051e1",
+      "fname": "视觉模块",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-sec-1d675de5c4ac334ac0d5-4bf3f1fb4640",
+      "fname": "中游制造",
+      "org": "string",
+      "tags": [],
+      "fixed": true,
+      "fx": 300,
+      "fy": 0,
+      "lev": "tagE",
+      "status": 1,
+      "meta": {},
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-03d85db5505a07dfba11-f27fd1c03597",
+      "fname": "机器人本体",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-888baef8c7bc9c13f88c-bba6a6d2eb41",
+      "fname": "整机装配",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-faadd5fd2499430227d1-bae3c2c6f740",
+      "fname": "自动化测试",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-6cfd1ac745598c0072af-48f52f9cb3b2",
+      "fname": "软件系统集成",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    },
+    {
+      "id": "yushu-link-d5134c7e9fe39774115c-bf16701fe473",
+      "fname": "质量检测",
+      "org": "",
+      "tags": [],
+      "fixed": false,
+      "fx": 0,
+      "fy": 0,
+      "lev": "tagF",
+      "status": 1,
+      "meta": {
+        "edgeMeta": {
+          "text2text": true
+        },
+        "iconMeta": {
+          "shape": "circle",
+          "rectHeight": 180,
+          "rectWidth": 180
+        }
+      },
+      "linkTime": "2026-06-11 12:00:00",
+      "updateTime": "2026-06-11T12:00:00",
+      "position": null,
+      "userId": 23709,
+      "listed": null,
+      "priority": 0,
+      "description": "",
+      "url": "",
+      "aiGraphRank": null,
+      "aiPreferredType": null,
+      "userPreferredType": 0,
+      "userConfirmed": true
+    }
+  ]
+}

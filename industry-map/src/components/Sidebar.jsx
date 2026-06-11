@@ -6,12 +6,11 @@ const API_BASE = 'https://qt.gtimg.cn/q=';
 const BATCH_SIZE = 30;
 const CACHE_TTL = 300000;
 
-export default function Sidebar({ industries, current, onSelect, onSelectScreening, selectedCode, refreshKey }) {
+export default function Sidebar({ industries, current, onSelect }) {
   const [industryHeat, setIndustryHeat] = useState({});
   const cacheRef = useRef(null);
   const [activeTab, setActiveTab] = useState('industry');
 
-  // 获取各行业实时涨跌幅
   useEffect(() => {
     const now = Date.now();
     if (cacheRef.current && (now - cacheRef.current.time) < CACHE_TTL) {
@@ -21,12 +20,12 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
 
     const samples = {};
     for (const [name, info] of Object.entries(industries)) {
-      if (name.startsWith('_')) continue;
+      if (!info.sections) continue;
       const codes = [];
-      for (const ld of Object.values(info['环节'] || {})) {
-        for (const c of (ld['股票'] || [])) {
-          if (/^\d{6}$/.test(c) && codes.length < 5) {
-            codes.push(c);
+      for (const sec of info.sections) {
+        for (const link of sec.links) {
+          for (const c of (link.stocks || [])) {
+            if (/^\d{6}$/.test(c) && codes.length < 5) codes.push(c);
           }
         }
       }
@@ -73,28 +72,24 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
   const heatSorted = React.useMemo(() => {
     const list = [];
     for (const [name, info] of Object.entries(industries)) {
-      if (name.startsWith('_')) continue;
-      let stocks = 0;
-      const linksObj = info['环节'] || {};
-      const linksCount = Object.keys(linksObj).length;
-      for (const l of Object.values(linksObj)) {
-        stocks += l['股票'].length;
+      if (!info.sections) continue;
+      let stockCount = 0;
+      let linkCount = 0;
+      for (const sec of info.sections) {
+        linkCount += sec.links.length;
+        for (const link of sec.links) {
+          stockCount += (link.stocks || []).length;
+        }
       }
-      // 完整度评分
-      let score = 0;
-      score += Math.min(linksCount * 5, 25);
-      score += Math.min(Object.values(linksObj).filter(l => l['描述']).length * 5, 20);
-      score += Math.min(Object.values(linksObj).filter(l => l['壁垒']).length * 3, 10);
-      score += Math.min(Object.values(linksObj).filter(l => l['上游'] && l['上游'].length).length * 3, 15);
-      score += Math.min(Object.values(linksObj).filter(l => l['下游'] && l['下游'].length).length * 3, 15);
-      score += Math.min(stocks / 3, 15);
-      score = Math.min(Math.round(score), 100);
-      
+
       const heatInfo = industryHeat[name] || { avgChg: 0 };
-      list.push({ name, links: linksCount, stocks, avgChg: heatInfo.avgChg, completeness: score });
+      list.push({
+        name, links: linkCount, stocks: stockCount,
+        avgChg: heatInfo.avgChg,
+        completeness: Math.min(100, Math.round((linkCount / 25) * 100)),
+      });
     }
     list.sort((a, b) => {
-      // 完整度为0的排最后
       if (a.completeness === 0 && b.completeness > 0) return 1;
       if (b.completeness === 0 && a.completeness > 0) return -1;
       return b.avgChg - a.avgChg;
@@ -109,7 +104,15 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
   };
 
   const currentInfo = industries[current];
-  const currentStockCount = heatSorted.find(i => i.name === current)?.stocks || 0;
+  let currentLinkCount = 0, currentStockCount = 0;
+  if (currentInfo && currentInfo.sections) {
+    for (const sec of currentInfo.sections) {
+      currentLinkCount += sec.links.length;
+      for (const link of sec.links) {
+        currentStockCount += (link.stocks || []).length;
+      }
+    }
+  }
 
   return (
     <div className="sidebar">
@@ -117,15 +120,11 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
         <button
           className={`sidebar-tab ${activeTab === 'industry' ? 'active' : ''}`}
           onClick={() => setActiveTab('industry')}
-        >
-          🗺️ 产业链
-        </button>
+        >🗺️ 产业链</button>
         <button
           className={`sidebar-tab ${activeTab === 'screening' ? 'active' : ''}`}
           onClick={() => setActiveTab('screening')}
-        >
-          🎯 选股
-        </button>
+        >🎯 选股</button>
       </div>
 
       {activeTab === 'industry' && (
@@ -135,7 +134,7 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
               <button
                   key={name}
                   className={`industry-btn ${name === current ? 'active' : ''}`}
-                  title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label} | 完整度${completeness}%`}
+                  title={`${name} — ${avgChg > 0 ? '+' : ''}${avgChg.toFixed(1)}% ${getHeatDot(avgChg).label}`}
                   onClick={() => onSelect(name)}
                 >
                   <span className="heat-dot" style={{ background: getHeatDot(avgChg).color }}></span>
@@ -150,11 +149,10 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
               </button>
             ))}
           </div>
-          {currentInfo && (
+          {currentInfo && currentInfo.sections && (
             <div className="industry-desc">
-              <p>{currentInfo['描述']}</p>
               <div className="desc-stats">
-                <span>🏗️ {Object.keys(currentInfo['环节']).length}个环节</span>
+                <span>🏗️ {currentLinkCount}个环节</span>
                 <span>📈 {currentStockCount}只股票</span>
               </div>
             </div>
@@ -163,11 +161,7 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
       )}
 
       {activeTab === 'screening' && (
-        <ScreeningPanel
-          onSelectScreening={onSelectScreening}
-          selectedCode={selectedCode}
-          refreshKey={refreshKey}
-        />
+        <ScreeningPanel />
       )}
     </div>
   );
