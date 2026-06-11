@@ -177,8 +177,15 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
         if (event.type === 'wheel') return true;
         return false;
       })
-      .on('zoom', (event) => g.attr('transform', event.transform));
+      .on('zoom', (event) => {
+        zoomStateRef.current = event.transform;
+        g.attr('transform', event.transform);
+      });
     svg.call(zoom);
+    // 恢复上次的zoom状态（点击公司切换选中时保留缩放位置）
+    if (zoomStateRef.current) {
+      svg.call(zoom.transform, zoomStateRef.current);
+    }
 
     for (let i = 0; i < sections.length; i++) {
       const cx = colX[i];
@@ -352,6 +359,7 @@ export default function GraphCanvas({
 }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
+  const zoomStateRef = useRef(null); // 保存zoom transform，选中切换时恢复
 
   const buildGraph = useCallback(() => {
     if (!industry || !svgRef.current) return;
