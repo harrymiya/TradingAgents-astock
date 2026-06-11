@@ -284,6 +284,17 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                   <span>盘{sd.market ?? 0}</span>
                 </div>
               </div>
+              {/* 选中时展开星球评价 */}
+              {isSelected && item.zsxq_comment && (
+                <div className="zsxq-comment-panel">
+                  <div className="zsxq-comment-title">📖 星球双圈评价</div>
+                  <div className="zsxq-comment-body">
+                    {item.zsxq_comment.split('|').map((line, j) => (
+                      <div key={j} className="zsxq-comment-line">{line}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

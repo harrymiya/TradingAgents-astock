@@ -426,7 +426,78 @@ def run_golden_pit(date_str=None, realtime=False):
             'real': real_score,
             'market': market_score,
         }
-    
+
+    # === 4b. 黄金坑评价引擎（基于星球双圈方法论）===
+    def _zsxq_eval(d, sd, total_score, market_up_ratio, chg_val, mcap_val):
+        # 基于评分维度生成评价
+        lines = []
+        chain = d['chain']
+        quality = d['quality']
+        tmt = d['tmt_boost']
+        ma60 = d['ma60']
+        vr5 = d['vr5']
+        pos20 = d['pos20']
+        dd = d['dd']
+        
+        tmt_flag = "(TMT)" if tmt > 1.0 else ""
+        if quality >= 5:
+            lines.append("链 %s *5%s 最高景气赛道，双圈共识" % (chain, tmt_flag))
+        else:
+            lines.append("链 %s *4%s 优质赛道" % (chain, tmt_flag))
+        
+        if ma60 > -5:
+            lines.append("60日线不破(ma60=%.1f%%) 谢SS标准黄金坑" % ma60)
+        elif ma60 > -10:
+            lines.append("轻度偏离60日线(ma60=%.1f%%) 观察是否继续下行" % ma60)
+        else:
+            lines.append("弱势放宽入选(ma60=%.1f%%) 注意破位风险" % ma60)
+        
+        if vr5 < 0.4:
+            lines.append("极致缩量(vr5=%.2f) 缩量见底变盘前兆" % vr5)
+        elif vr5 < 0.55:
+            lines.append("充分缩量(vr5=%.2f) 布林钱袋变盘信号" % vr5)
+        elif vr5 < 0.7:
+            lines.append("轻度缩量(vr5=%.2f) 需结合位置" % vr5)
+        
+        if pos20 < 3:
+            lines.append("20日最低位(pos20=%.0f%%) 跌透了的黄金坑" % pos20)
+        elif pos20 < 6:
+            lines.append("接近低位(pos20=%.0f%%)" % pos20)
+        else:
+            lines.append("位置偏高(pos20=%.0f%%) 不是最佳入场点" % pos20)
+        
+        if dd >= 5:
+            lines.append("充分出清(dd=%d天) 浮筹清洗干净" % dd)
+        elif dd >= 3:
+            lines.append("中度出清(dd=%d天) 洗盘接近尾声" % dd)
+        elif dd >= 2:
+            lines.append("轻度出清(dd=%d天)" % dd)
+        else:
+            lines.append("仅跌%d天 可能还没跌透" % dd)
+        
+        if chg_val > 2:
+            lines.append("盘中+%.2f%% 逆势拉升有资金买入" % chg_val)
+        elif chg_val > 0:
+            lines.append("盘中+%.2f%% 弱市中企稳" % chg_val)
+        elif chg_val > -2:
+            lines.append("盘中%.2f%% 方向不明" % chg_val)
+        else:
+            lines.append("盘中%.2f%% 可能趋势还在下" % chg_val)
+        
+        if quality >= 5 and ma60 > -5:
+            lines.append("双圈共识票 高质量链+60日线不破")
+        
+        if total_score >= 15 and ma60 > -5:
+            lines.append("利润来自持有 中线策略 止损设60日线-12%%")
+        elif total_score >= 15:
+            lines.append("弱市黄金坑1级 控制仓位")
+        elif total_score >= 10:
+            lines.append("预判中跟随 观察为主")
+        else:
+            lines.append("仅做记录")
+        
+        return "|".join(lines)
+
     # === 5. 评分+过滤 ===
     all_items = []
     for d in all_codes_data.values():
@@ -454,6 +525,7 @@ def run_golden_pit(date_str=None, realtime=False):
             'ret5': round(d['ret5'], 1), 'ret10': round(d['ret10'], 1),
             'amp': round(d['amp'], 1),
             'score_detail': score_detail,
+            'zsxq_comment': _zsxq_eval(d, score_detail, score_val, market_up_ratio, chg_val, mcap_val),
         }
         all_items.append(item)
     

@@ -448,3 +448,29 @@
   color: #6e7681;
   font-size: 9px;
 }
+
+/* 星球双圈评价面板 */
+.zsxq-comment-panel {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #1a253b;
+  border: 1px solid #58a6ff;
+  border-radius: 6px;
+}
+.zsxq-comment-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #58a6ff;
+  margin-bottom: 4px;
+}
+.zsxq-comment-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.zsxq-comment-line {
+  font-size: 10px;
+  color: #c9d1d9;
+  line-height: 1.5;
+  padding: 1px 0;
+}
