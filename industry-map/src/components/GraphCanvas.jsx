@@ -136,7 +136,7 @@ function buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onN
 // ============================================================
 // 模式2：横向表格（一级为文字标题，环节垂直列表，公司圆点）
 // ============================================================
-function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height) {
+function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height, zoomStateRef) {
   try {
     const sections = industry.sections || [];
     if (sections.length === 0) return;
@@ -170,11 +170,12 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
     for (let i = 0; i < sections.length; i++) colX[i] = offsetX + i * (COL_W + COL_GAP) + COL_W / 2;
 
     const g = svg.append('g');
-    // 横向表格支持鼠标滚轮缩放（过滤掉stock-row点击事件避免误触发缩放）
+    // 横向表格支持滚轮缩放+鼠标拖拽平移
     const zoom = d3.zoom().scaleExtent([0.3, 5])
       .filter(event => {
-        // 只允许滚轮缩放，禁用双击和拖拽缩放
+        // 滚轮缩放 + 鼠标拖拽（排除stock-row内的点击）
         if (event.type === 'wheel') return true;
+        if (event.type === 'mousedown') return !event.target.closest('.stock-row');
         return false;
       })
       .on('zoom', (event) => {
@@ -182,9 +183,9 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
         g.attr('transform', event.transform);
       });
     svg.call(zoom);
-    // 恢复上次的zoom状态（点击公司切换选中时保留缩放位置）
+    // 恢复上次缩放状态（手动设置g的transform，不触发zoom事件）
     if (zoomStateRef.current) {
-      svg.call(zoom.transform, zoomStateRef.current);
+      g.attr('transform', zoomStateRef.current);
     }
 
     for (let i = 0; i < sections.length; i++) {
@@ -372,7 +373,7 @@ export default function GraphCanvas({
     if (layoutMode === 'force') {
       buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
     } else if (layoutMode === 'horizontal') {
-      buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
+      buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height, zoomStateRef);
     }
   }, [layoutMode, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode]);
 
