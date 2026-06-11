@@ -21,7 +21,7 @@ def convert():
                     name_map = v
             else:
                 stocks_map[k] = v
-        print(f'已加载stocks.json: {len(stocks_map)}个产业链的股票映射')
+        print(f'已加载stocks.json: {len(stocks_map)}个产业链的股票映射, {len(name_map)}只公司名称')
     
     result = {}
     
@@ -70,9 +70,16 @@ def convert():
                 # 查是否有股票数据
                 chain_stocks = stocks_map.get(chain_key, {})
                 codes = chain_stocks.get(n['name'], [])
+                # 把股票代码+名称都带上
+                stock_with_names = []
+                for c in codes:
+                    stock_with_names.append({
+                        'code': c,
+                        'name': name_map.get(c, c),
+                    })
                 level2_map[n['name']] = {
                     'name': n['name'],
-                    'stocks': codes,
+                    'stocks': stock_with_names,
                 }
         
         # 从edges解析归属关系

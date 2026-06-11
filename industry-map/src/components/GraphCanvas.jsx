@@ -55,13 +55,15 @@ function buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onN
 
       for (const code of (link.stocks || [])) {
         const price = stockPrices[code] || {};
+        const stockName = (typeof code === 'object') ? code.name : (price.name || code);
+        const codeStr = (typeof code === 'object') ? code.code : code;
         const { fillColor, r } = getStockColorAndRadius(price, colorMetric);
         nodes.push({
-          id: code, name: price.name || code, code, type: 'stock',
+          id: codeStr, name: stockName, code: codeStr, type: 'stock',
           price: price.price || 0, chg: price.chg || 0,
           r, fillColor, linkName: link.name, linkColor: linkNode.color,
         });
-        links.push({ source: code, target: 'link_' + link.name, type: 'belongs' });
+        links.push({ source: codeStr, target: 'link_' + link.name, type: 'belongs' });
       }
     }
   }
@@ -176,8 +178,10 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
         let sy = yPos + 18;
         for (const code of (link.stocks || [])) {
           const price = stockPrices[code] || {};
+          const stockName = (typeof code === 'object') ? code.name : (price.name || code);
+          const codeStr = (typeof code === 'object') ? code.code : code;
           const { fillColor } = getStockColorAndRadius(price, colorMetric);
-          const nameLabel = (price.name || code).length > 10 ? (price.name || code).slice(0, 10) + '..' : (price.name || code);
+          const nameLabel = stockName.length > 10 ? stockName.slice(0, 10) + '..' : stockName;
           const cgStr = ((price.chg || 0) >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%';
           const cgColor = (price.chg || 0) >= 0 ? '#ff6b6b' : '#51cf66';
 
@@ -188,7 +192,7 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
           row.append('text').attr('x', cx + COL_W / 2 - 55).attr('y', sy + 10).attr('fill', cgColor).attr('font-size', 8).text(cgStr);
 
           // 点击整行
-          row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
+          row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: codeStr, code: codeStr, name: stockName, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
           row.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
           row.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
 
@@ -282,6 +286,8 @@ function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onN
         for (let k = 0; k < stks.length; k++) {
           const code = stks[k];
           const price = stockPrices[code] || {};
+          const stockName = (typeof code === 'object') ? code.name : (price.name || code);
+          const codeStr = (typeof code === 'object') ? code.code : code;
           const { fillColor } = getStockColorAndRadius(price, colorMetric);
           const sOff = stkBaseR + k * 60;
           const sx = lx + sOff * Math.cos(stkAngle);
@@ -293,7 +299,7 @@ function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onN
 
           const isRight = Math.cos(stkAngle) > 0;
           const tx = sx + (isRight ? 8 : -8);
-          const nameLabel = (price.name || code).length > 6 ? (price.name || code).slice(0, 6) + '..' : (price.name || code);
+          const nameLabel = stockName.length > 6 ? stockName.slice(0, 6) + '..' : stockName;
           const cgStr = ((price.chg || 0) >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%';
           const cgColor = (price.chg || 0) >= 0 ? '#ff6b6b' : '#51cf66';
           const textEl = sg.append('text').attr('x', tx).attr('y', sy + 3).attr('text-anchor', isRight ? 'start' : 'end');
@@ -301,7 +307,7 @@ function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onN
           textEl.append('tspan').attr('fill', cgColor).text(cgStr);
 
           // 点击整组
-          sg.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
+          sg.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: codeStr, code: codeStr, name: stockName, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
           sg.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
           sg.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
 
