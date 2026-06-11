@@ -1,6 +1,7 @@
 .detail-panel {
-  width: 280px;
-  min-width: 280px;
+  width: 320px;
+  min-width: 220px;
+  max-width: 600px;
   background: #0d1117;
   border-left: 1px solid #21262d;
   display: flex;

@@ -339,11 +339,12 @@ export default function DetailPanel({
   industryName,
   industryData,
   analysisState,
+  style,
 }) {
   // 概览模式
   if (!selectedNode) {
     return (
-      <div className="detail-panel">
+      <div className="detail-panel" style={style}>
         <div className="detail-header">
           <h3>🏭 产业链概览</h3>
         </div>

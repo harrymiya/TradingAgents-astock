@@ -238,11 +238,7 @@
 
 /* 🆕 黄金坑选股样式 */
 .golden-pit-item {
-  border-left: 2px solid #58a6ff;
-}
-
-.golden-pit-item:hover {
-  border-left-color: #d29922;
+  /* 去掉左侧蓝色竖条，仅保留选中高亮 */
 }
 
 .golden-pit-detail {

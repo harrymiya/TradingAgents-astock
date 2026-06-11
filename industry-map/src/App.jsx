@@ -83,6 +83,39 @@ async function batchFetchQtCodes(codes) {
   return results;
 }
 
+/** 拖拽条组件 */
+function ResizeHandle({ onResize }) {
+  const dragging = useRef(false);
+  const handleRef = useRef(null);
+
+  const onMouseDown = useCallback((e) => {
+    e.preventDefault();
+    dragging.current = true;
+    handleRef.current?.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (ev) => {
+      if (!dragging.current) return;
+      if (onResize) onResize(ev.clientX);
+    };
+    const onMouseUp = () => {
+      dragging.current = false;
+      handleRef.current?.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [onResize]);
+
+  return (
+    <div className="resize-handle" ref={handleRef} onMouseDown={onMouseDown} />
+  );
+}
+
 export default function App() {
   const init = getInitParams();
   const [currentIndustry, setCurrentIndustry] = useState(init.industry);
@@ -97,7 +130,13 @@ export default function App() {
   const [detailHistory, setDetailHistory] = useState([]);
   const [analysisState, setAnalysisState] = useState({});
 
+  // 左右栏宽度（默认值）
+  const [sidebarWidth, setSidebarWidth] = useState(310);
+  const [detailWidth, setDetailWidth] = useState(320);
+  const maxWidth = useRef(null); // 用于计算最大宽度
+
   const graphRef = useRef(null);
+  const appRef = useRef(null);
 
   const getQryCodes = useCallback(() => {
     return collectCodes(frameworksData[currentIndustry]);
@@ -119,7 +158,6 @@ export default function App() {
   useEffect(() => { fetchPrices(); }, [currentIndustry, fetchPrices]);
 
   const handleSelectStock = useCallback((item) => {
-    // 从选股列表选中 → 同步到图高亮、K线、详情
     const node = {
       id: item.code,
       code: item.code,
@@ -127,7 +165,6 @@ export default function App() {
       type: 'stock',
       chg: item.chg || 0,
       price: item.close || 0,
-      // 携带黄金坑详情
       chain: item.chain,
       score_detail: item.score_detail,
       total_score: item.total_score,
@@ -148,7 +185,6 @@ export default function App() {
     }
   }, []);
 
-  // 图上点击节点
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
     setTooltip(null);
@@ -164,10 +200,31 @@ export default function App() {
     setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
+  // 计算最大可拖拽宽度
+  useEffect(() => {
+    const updateMax = () => {
+      maxWidth.current = window.innerWidth - 100;
+    };
+    updateMax();
+    window.addEventListener('resize', updateMax);
+    return () => window.removeEventListener('resize', updateMax);
+  }, []);
+
+  const onResizeSidebar = useCallback((clientX) => {
+    const newW = Math.max(200, Math.min(clientX, maxWidth.current - detailWidth - 10));
+    setSidebarWidth(newW);
+  }, [detailWidth]);
+
+  const onResizeDetail = useCallback((clientX) => {
+    const appW = appRef.current?.offsetWidth || window.innerWidth;
+    const newW = Math.max(220, Math.min(appW - clientX - sidebarWidth - 12, 600));
+    setDetailWidth(newW);
+  }, [sidebarWidth]);
+
   const currentData = frameworksData[currentIndustry];
 
   return (
-    <div className="app">
+    <div className="app" ref={appRef}>
       <Sidebar
         industries={frameworksData}
         current={currentIndustry}
@@ -175,7 +232,9 @@ export default function App() {
         onSelectScreening={handleSelectStock}
         selectedCode={selectedNode?.code}
         onAnalysisUpdate={setAnalysisState}
+        style={{ width: sidebarWidth, minWidth: 200 }}
       />
+      <ResizeHandle onResize={onResizeSidebar} />
       <div className="main">
         <Controls
           colorMetric={colorMetric}
@@ -214,6 +273,7 @@ export default function App() {
           />
         )}
       </div>
+      <ResizeHandle onResize={onResizeDetail} />
       <DetailPanel
         selectedNode={selectedNode}
         stockPrices={stockPrices}
@@ -223,6 +283,7 @@ export default function App() {
         onBack={handleBack}
         history={detailHistory}
         analysisState={analysisState}
+        style={{ width: detailWidth, minWidth: 220, maxWidth: 600 }}
       />
     </div>
   );
