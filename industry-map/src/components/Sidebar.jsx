@@ -6,7 +6,7 @@ const API_BASE = 'https://qt.gtimg.cn/q=';
 const BATCH_SIZE = 30;
 const CACHE_TTL = 300000;
 
-export default function Sidebar({ industries, current, onSelect, onSelectScreening, selectedCode }) {
+export default function Sidebar({ industries, current, onSelect, onSelectScreening, selectedCode, onAnalysisUpdate }) {
   const [industryHeat, setIndustryHeat] = useState({});
   const cacheRef = useRef(null);
   const [activeTab, setActiveTab] = useState('industry');
@@ -162,7 +162,7 @@ export default function Sidebar({ industries, current, onSelect, onSelectScreeni
       )}
 
       {activeTab === 'screening' && (
-        <ScreeningPanel onSelectScreening={onSelectScreening} selectedCode={selectedCode} />
+        <ScreeningPanel onSelectScreening={onSelectScreening} selectedCode={selectedCode} onAnalysisUpdate={onAnalysisUpdate} />
       )}
     </div>
   );

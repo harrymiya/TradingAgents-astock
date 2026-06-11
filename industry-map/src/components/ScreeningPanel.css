@@ -7,7 +7,7 @@
 }
 
 .screening-panel h3 {
-  font-size: 14px;
+  font-size: 16px;
   color: #58a6ff;
   flex-shrink: 0;
   padding-bottom: 6px;
@@ -76,16 +76,16 @@
 }
 
 .screening-summary {
-  font-size: 10px;
+  font-size: 12px;
   color: #6e7681;
-  padding: 4px 8px;
+  padding: 6px 10px;
   background: #161b22;
-  border-radius: 4px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 
 .screening-loading {
-  font-size: 11px;
+  font-size: 13px;
   color: #d29922;
   padding: 20px 8px;
   text-align: center;
@@ -93,16 +93,16 @@
 }
 
 .screening-error {
-  font-size: 11px;
+  font-size: 13px;
   color: #ff6b6b;
   padding: 8px;
   background: #2d1215;
-  border-radius: 4px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 
 .screening-empty {
-  font-size: 11px;
+  font-size: 13px;
   color: #6e7681;
   padding: 20px 8px;
   text-align: center;
@@ -119,7 +119,7 @@
 }
 
 .screening-item {
-  padding: 5px 8px;
+  padding: 6px 10px;
   background: transparent;
   border-radius: 4px;
   cursor: pointer;
@@ -142,7 +142,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .screening-code {
@@ -159,25 +159,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .screening-chain-tag {
-  font-size: 9px;
+  font-size: 10px;
   color: #d29922;
   background: #2d2a12;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 3px;
   flex-shrink: 0;
   margin-right: 2px;
 }
 
 .screening-chg {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
-  min-width: 52px;
+  min-width: 55px;
   text-align: right;
 }
 
@@ -208,8 +208,8 @@
 
 .screening-price {
   color: #8b949e;
-  font-size: 10px;
-  min-width: 48px;
+  font-size: 11px;
+  min-width: 50px;
   text-align: right;
   flex-shrink: 0;
 }
@@ -236,48 +236,6 @@
   flex-shrink: 0;
 }
 
-.analysis-info {
-  font-size: 11px;
-  padding: 8px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  line-height: 1.5;
-}
-
-.analysis-info.analyzing {
-  background: #1a253b;
-  color: #58a6ff;
-  border: 1px solid #30363d;
-}
-
-.analysis-info.error {
-  background: #2d1215;
-  color: #ff6b6b;
-  border: 1px solid #30363d;
-}
-
-.analysis-info.done {
-  background: #112a1a;
-  color: #7ee787;
-  border: 1px solid #30363d;
-}
-
-.analysis-judge, .analysis-plan {
-  font-size: 10px;
-  color: #c9d1d9;
-  margin-top: 4px;
-  max-height: 80px;
-  overflow-y: auto;
-}
-
-.screening-detail-text {
-  font-size: 10px;
-  color: #6e7681;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* 🆕 黄金坑选股样式 */
 .golden-pit-item {
   border-left: 2px solid #58a6ff;
@@ -301,47 +259,14 @@
   border-radius: 3px;
 }
 
-.screening-chain-tag {
-  font-size: 9px;
-  color: #d29922;
-  background: #2d2a12;
-  padding: 1px 4px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.screening-pos20 {
-  color: #ff6b6b !important;
-}
-
-.screening-ma20 {
-  color: #d29922 !important;
-}
-
-.screening-vr5 {
-  color: #58a6ff !important;
-}
-
-.screening-mcap {
-  color: #7ee787 !important;
-}
-
-.screening-dd {
-  color: #ff6b6b !important;
-}
-
-/* ⭐ V3黄金坑新样式 */
+/* V3 指标区 */
 .golden-pit-detail-v3 {
   margin-top: 4px;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-.golden-pit-signal-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+
 .signal-badge {
   font-size: 10px;
   font-weight: 600;
@@ -363,32 +288,36 @@
   background: #161b22;
   border: 1px solid #30363d;
 }
+
+/* 指标行—放大 */
 .golden-pit-metrics {
-  font-size: 10px;
+  font-size: 11px;
   color: #8b949e;
   display: flex;
-  gap: 4px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 .gp-metric {
   background: #161b22;
-  padding: 1px 5px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
   color: #8b949e;
 }
 .screening-code-on-right {
   margin-left: auto;
   color: #6e7681;
   font-family: monospace;
-  font-size: 9px;
+  font-size: 10px;
   background: transparent;
   padding: 1px 2px;
 }
+
+/* 评分行—放大 */
 .golden-pit-score-detail {
-  font-size: 9px;
+  font-size: 11px;
   color: #6e7681;
   display: flex;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
 }
 .golden-pit-score-detail span {
@@ -396,8 +325,9 @@
 }
 .sd-sep {
   color: #30363d;
-  font-size: 8px;
+  font-size: 9px;
 }
+
 .golden-pit-v3-badge {
   font-size: 9px;
   color: #58a6ff;
@@ -407,13 +337,13 @@
   margin-left: 4px;
 }
 
-/* 新摘要区样式 */
+/* 摘要区—放大 */
 .summary-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  margin-top: 2px;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 3px;
 }
 .summary-row:first-child {
   margin-top: 0;
@@ -421,6 +351,7 @@
 .summary-count {
   font-weight: 600;
   color: #c9d1d9;
+  font-size: 13px;
 }
 .summary-detail {
   color: #6e7681;
@@ -439,15 +370,15 @@
 }
 .summary-warning {
   color: #ff6b6b;
-  font-size: 9px;
+  font-size: 10px;
 }
 .signal-dist {
   gap: 4px;
 }
 .signal-count {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 6px;
 }
 .signal-count.s1 {
@@ -467,53 +398,45 @@
 }
 .hint {
   color: #6e7681;
-  font-size: 9px;
+  font-size: 10px;
 }
 
-/* 星球双圈评价面板（谢SS蓝 + Macro绿 双列深色） */
-.zsxq-dual-panel {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-.zsxq-eval-block {
-  flex: 1;
-  min-width: 200px;
-  border-radius: 6px;
+/* 操作纪律 */
+.golden-pit-discipline {
+  margin-top: 8px;
   padding: 8px 10px;
+  background: #161b22;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+  flex-shrink: 0;
 }
-.xies-block {
-  background: #0d2137;
-  border: 1px solid #1a6ba0;
-}
-.macro-block {
-  background: #0a2e1a;
-  border: 1px solid #1a8a3a;
-}
-.zsxq-eval-title {
-  font-size: 11px;
+.discipline-title {
+  font-size: 12px;
   font-weight: 600;
+  color: #d29922;
   margin-bottom: 4px;
 }
-.xies-block .zsxq-eval-title { color: #58a6ff; }
-.macro-block .zsxq-eval-title { color: #3fb950; }
-.zsxq-eval-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.zsxq-eval-line {
-  font-size: 10px;
-  color: #c9d1d9;
+.discipline-text {
+  font-size: 11px;
+  color: #8b949e;
   line-height: 1.5;
   padding: 1px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-.zsxq-eval-line:last-child {
-  font-weight: 600;
-  border-bottom: none;
-  padding-top: 3px;
-  margin-top: 1px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+
+/* 删除不用的stats样式 */
+.screening-pos20,
+.screening-ma20,
+.screening-vr5,
+.screening-mcap,
+.screening-dd {
+  display: none;
+}
+
+/* 星球旧样式 */
+.zsxq-dual-panel,
+.zsxq-eval-block,
+.zsxq-eval-line,
+.zsxq-eval-title,
+.zsxq-eval-body {
+  /* 不再使用 */ 
 }

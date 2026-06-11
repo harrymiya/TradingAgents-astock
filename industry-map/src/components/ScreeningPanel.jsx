@@ -58,11 +58,16 @@ function AnalysisInfo({ analysisResult, analysisError, analyzing }) {
   return null;
 }
 
-export default function ScreeningPanel({ onSelectScreening, selectedCode, refreshKey }) {
+export default function ScreeningPanel({ onSelectScreening, selectedCode, refreshKey, onAnalysisUpdate }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [analysisState, setAnalysisState] = useState({});
+
+  // analysisState变化时同步到父组件
+  useEffect(() => {
+    if (onAnalysisUpdate) onAnalysisUpdate(analysisState);
+  }, [analysisState, onAnalysisUpdate]);
 
   // 自动运行黄金坑
   const runGoldenPit = useCallback(async () => {
@@ -210,15 +215,6 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
         <div className="screening-loading">⏳ 正在扫描优质产业链黄金坑...</div>
       )}
 
-      {/* 分析状态信息 */}
-      {selectedCode && selectedAnalysis && (
-        <AnalysisInfo
-          analysisResult={selectedAnalysis.result}
-          analysisError={selectedAnalysis.error}
-          analyzing={selectedAnalysis.analyzing}
-        />
-      )}
-
       <div className="screening-results">
         {currentResults.map((item) => {
           const isSelected = selectedCode && item.code === selectedCode;
@@ -270,31 +266,6 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                   <span>盘{sd.market ?? 0}</span>
                 </div>
               </div>
-              {/* 选中时展开星球双圈评价（谢SS + Macro独立） */}
-              {isSelected && (item.xies_comment || item.macro_comment) && (
-                <div className="zsxq-dual-panel">
-                  {item.xies_comment && (
-                    <div className="zsxq-eval-block xies-block">
-                      <div className="zsxq-eval-title">📖 谢SS评价（股道价值投资）</div>
-                      <div className="zsxq-eval-body">
-                        {item.xies_comment.split('|').map((line, j) => (
-                          <div key={j} className="zsxq-eval-line">{line}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {item.macro_comment && (
-                    <div className="zsxq-eval-block macro-block">
-                      <div className="zsxq-eval-title">📖 Macro评价（Labubu产业链）</div>
-                      <div className="zsxq-eval-body">
-                        {item.macro_comment.split('|').map((line, j) => (
-                          <div key={j} className="zsxq-eval-line">{line}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           );
         })}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './DetailPanel.css';
 
 function getChgColor(chg) {
@@ -44,21 +44,101 @@ function getSignalLabel(score) {
   return '3级';
 }
 
-/** 公司详情面板 — 信息越多越好 */
-function StockDetail({ node, stockPrices }) {
+/** 深度分析弹窗 */
+function AnalysisModal({ analysis, onClose }) {
+  if (!analysis) return null;
+  const r = analysis.result;
+  if (!r) return null;
+
+  const renderAnalyst = (label, content, color) => {
+    if (!content) return null;
+    return (
+      <div className="am-block" style={{borderLeftColor: color}}>
+        <div className="am-block-title">{label}</div>
+        <div className="am-block-body">{content}</div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="am-overlay" onClick={onClose}>
+      <div className="am-modal" onClick={e => e.stopPropagation()}>
+        <div className="am-header">
+          <span className="am-title">🤖 TradingAgents 深度分析报告</span>
+          <button className="am-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="am-body">
+          {r.elapsed && <div className="am-meta">分析耗时：{r.elapsed}秒</div>}
+
+          {r.market_analyst && renderAnalyst('📊 市场分析师', r.market_analyst, '#58a6ff')}
+          {r.sentiment_analyst && renderAnalyst('😊 情绪分析师', r.sentiment_analyst, '#d29922')}
+          {r.news_analyst && renderAnalyst('📰 新闻分析师', r.news_analyst, '#3fb950')}
+          {r.fundamental_analyst && renderAnalyst('📈 基本面分析师', r.fundamental_analyst, '#bc8cff')}
+          {r.policy_analyst && renderAnalyst('🏛️ 政策分析师', r.policy_analyst, '#f0883e')}
+          {r.youzi_analyst && renderAnalyst('💹 游资追踪分析师', r.youzi_analyst, '#ff6b6b')}
+          {r.jiemi_analyst && renderAnalyst('🔓 解禁监控分析师', r.jiemi_analyst, '#ffb320')}
+
+          {/* Bull/Bear辩论 */}
+          {r.bull_debate && (
+            <div className="am-block" style={{borderLeftColor: '#3fb950'}}>
+              <div className="am-block-title">🐂 多方辩论（Bull）</div>
+              {Array.isArray(r.bull_debate) ? r.bull_debate.map((d, i) => (
+                <div key={i} className="am-debate-line">{d}</div>
+              )) : <div className="am-block-body">{r.bull_debate}</div>}
+            </div>
+          )}
+          {r.bear_debate && (
+            <div className="am-block" style={{borderLeftColor: '#ff6b6b'}}>
+              <div className="am-block-title">🐻 空方辩论（Bear）</div>
+              {Array.isArray(r.bear_debate) ? r.bear_debate.map((d, i) => (
+                <div key={i} className="am-debate-line">{d}</div>
+              )) : <div className="am-block-body">{r.bear_debate}</div>}
+            </div>
+          )}
+
+          {r.risk_debate && (
+            <div className="am-block" style={{borderLeftColor: '#d29922'}}>
+              <div className="am-block-title">⚠️ 风险辩论</div>
+              <div className="am-block-body">{r.risk_debate}</div>
+            </div>
+          )}
+
+          {r.judge_decision && (
+            <div className="am-block am-judge-block">
+              <div className="am-block-title">⚖️ 裁判判决</div>
+              <div className="am-block-body">{r.judge_decision}</div>
+            </div>
+          )}
+
+          {r.trader_plan && (
+            <div className="am-block am-trader-block">
+              <div className="am-block-title">📋 交易计划</div>
+              <div className="am-block-body">{r.trader_plan}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 公司详情面板 */
+function StockDetail({ node, stockPrices, analysis, analyzing }) {
   const code = node.code;
   const price = stockPrices[code] || {};
 
-  // 处理node中可能传来的黄金坑数据
   const chain = node.chain;
   const sd = node.score_detail || {};
   const totalScore = node.total_score;
   const xies = node.xies_comment;
   const macro = node.macro_comment;
 
-  // 基础行情数据：优先用node携带的，如果没有则用stockPrices
   const displayChg = node.chg != null ? node.chg : (price.chg || 0);
   const displayPrice = node.price != null ? node.price : (price.price || 0);
+
+  const [showAnalysis, setShowAnalysis] = useState(false);
+
+  const analysisDone = analysis && analysis.result && analysis.result.status === 'ok';
 
   return (
     <div className="stock-detail">
@@ -185,6 +265,41 @@ function StockDetail({ node, stockPrices }) {
           </div>
         </div>
       )}
+
+      {/* ===== 深度分析区块（按钮弹窗） ===== */}
+      <div className="sd-section sd-analysis-section">
+        <div className="sd-section-title">🤖 TradingAgents 深度分析</div>
+        {analyzing ? (
+          <div className="sd-analysis-status">
+            <span className="sd-analysis-spin">⏳</span> 8位分析师辩论中（约3-5分钟）...
+          </div>
+        ) : analysisDone ? (
+          <div>
+            <div className="sd-analysis-summary">
+              ✅ 分析完成
+              {analysis.result.elapsed && <span className="sd-analysis-elapsed">（{analysis.result.elapsed}秒）</span>}
+            </div>
+            {analysis.result.judge_decision && (
+              <div className="sd-analysis-preview">
+                ⚖️ {analysis.result.judge_decision.slice(0, 120)}
+                {analysis.result.judge_decision.length > 120 && '...'}
+              </div>
+            )}
+            <button className="sd-analysis-btn" onClick={() => setShowAnalysis(true)}>
+              📄 查看完整分析报告
+            </button>
+          </div>
+        ) : analysis && analysis.error ? (
+          <div className="sd-analysis-status sd-analysis-error">❌ 分析失败: {analysis.error}</div>
+        ) : (
+          <div className="sd-analysis-status sd-analysis-idle">点击选股列表中的公司自动启动分析</div>
+        )}
+      </div>
+
+      {/* 深度分析弹窗 */}
+      {showAnalysis && analysis && analysis.result && (
+        <AnalysisModal analysis={analysis} onClose={() => setShowAnalysis(false)} />
+      )}
     </div>
   );
 }
@@ -223,6 +338,7 @@ export default function DetailPanel({
   stockPrices,
   industryName,
   industryData,
+  analysisState,
 }) {
   // 概览模式
   if (!selectedNode) {
@@ -249,6 +365,10 @@ export default function DetailPanel({
   const isLink = node.type === 'link';
   const isStock = node.type === 'stock';
   const code = node.code;
+
+  // 获取该股票的分析状态
+  const analysis = code && analysisState ? analysisState[code] : null;
+  const analyzing = analysis?.analyzing;
 
   // 查找该公司所属的产业链环节
   let currentSection = null;
@@ -279,7 +399,7 @@ export default function DetailPanel({
       </div>
       <div className="detail-body">
         {isStock && code && (
-          <StockDetail node={node} stockPrices={stockPrices} />
+          <StockDetail node={node} stockPrices={stockPrices} analysis={analysis} analyzing={analyzing} />
         )}
         {isLink && currentSection && (
           <LinkDetail node={node} section={currentSection} stockPrices={stockPrices} />

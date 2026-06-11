@@ -95,6 +95,7 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [klineStock, setKlineStock] = useState(null);
   const [detailHistory, setDetailHistory] = useState([]);
+  const [analysisState, setAnalysisState] = useState({});
 
   const graphRef = useRef(null);
 
@@ -173,6 +174,7 @@ export default function App() {
         onSelect={setCurrentIndustry}
         onSelectScreening={handleSelectStock}
         selectedCode={selectedNode?.code}
+        onAnalysisUpdate={setAnalysisState}
       />
       <div className="main">
         <Controls
@@ -220,6 +222,7 @@ export default function App() {
         onSelectStock={handleSelectStock}
         onBack={handleBack}
         history={detailHistory}
+        analysisState={analysisState}
       />
     </div>
   );
