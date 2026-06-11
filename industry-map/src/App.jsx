@@ -23,7 +23,7 @@ function getInitParams() {
   const keys = Object.keys(frameworksData);
   return {
     industry: params.get('industry') || (keys[0] || ''),
-    metric: params.get('metric') || 'chg',
+    metric: params.get('metric') || 'yearChg',
     layout: savedMode,
   };
 }
@@ -84,32 +84,51 @@ async function batchFetchQtCodes(codes) {
 }
 
 /** 拖拽条组件 */
-function ResizeHandle({ onResize }) {
-  const dragging = useRef(false);
+function ResizeHandle({ target, sidebarRef, detailRef, setSidebarWidth, setDetailWidth }) {
   const handleRef = useRef(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startW = useRef(0);
 
   const onMouseDown = useCallback((e) => {
     e.preventDefault();
     dragging.current = true;
+    startX.current = e.clientX;
+    startW.current = target === 'sidebar' ? sidebarRef.current : detailRef.current;
     handleRef.current?.classList.add('active');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+  }, [target, sidebarRef, detailRef]);
 
-    const onMouseMove = (ev) => {
+  useEffect(() => {
+    const onMouseMove = (e) => {
       if (!dragging.current) return;
-      if (onResize) onResize(ev.clientX);
+      const dx = e.clientX - startX.current;
+      let newW;
+      if (target === 'sidebar') {
+        newW = Math.max(200, Math.min(startW.current + dx, 600));
+        sidebarRef.current = newW;
+        setSidebarWidth(newW);
+      } else {
+        newW = Math.max(220, Math.min(startW.current - dx, 600));
+        detailRef.current = newW;
+        setDetailWidth(newW);
+      }
     };
     const onMouseUp = () => {
+      if (!dragging.current) return;
       dragging.current = false;
       handleRef.current?.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
     };
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [onResize]);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [target, setSidebarWidth, setDetailWidth, sidebarRef, detailRef]);
 
   return (
     <div className="resize-handle" ref={handleRef} onMouseDown={onMouseDown} />
@@ -133,7 +152,8 @@ export default function App() {
   // 左右栏宽度（默认值）
   const [sidebarWidth, setSidebarWidth] = useState(310);
   const [detailWidth, setDetailWidth] = useState(320);
-  const maxWidth = useRef(null); // 用于计算最大宽度
+  const sidebarRef = useRef(310);
+  const detailRef = useRef(320);
 
   const graphRef = useRef(null);
   const appRef = useRef(null);
@@ -200,27 +220,6 @@ export default function App() {
     setDetailHistory(prev => prev.slice(0, -1));
   }, []);
 
-  // 计算最大可拖拽宽度
-  useEffect(() => {
-    const updateMax = () => {
-      maxWidth.current = window.innerWidth - 100;
-    };
-    updateMax();
-    window.addEventListener('resize', updateMax);
-    return () => window.removeEventListener('resize', updateMax);
-  }, []);
-
-  const onResizeSidebar = useCallback((clientX) => {
-    const newW = Math.max(200, Math.min(clientX, maxWidth.current - detailWidth - 10));
-    setSidebarWidth(newW);
-  }, [detailWidth]);
-
-  const onResizeDetail = useCallback((clientX) => {
-    const appW = appRef.current?.offsetWidth || window.innerWidth;
-    const newW = Math.max(220, Math.min(appW - clientX - sidebarWidth - 12, 600));
-    setDetailWidth(newW);
-  }, [sidebarWidth]);
-
   const currentData = frameworksData[currentIndustry];
 
   return (
@@ -234,7 +233,7 @@ export default function App() {
         onAnalysisUpdate={setAnalysisState}
         style={{ width: sidebarWidth, minWidth: 200 }}
       />
-      <ResizeHandle onResize={onResizeSidebar} />
+      <ResizeHandle target="sidebar" sidebarRef={sidebarRef} detailRef={detailRef} setSidebarWidth={setSidebarWidth} setDetailWidth={setDetailWidth} />
       <div className="main">
         <Controls
           colorMetric={colorMetric}
@@ -273,7 +272,7 @@ export default function App() {
           />
         )}
       </div>
-      <ResizeHandle onResize={onResizeDetail} />
+      <ResizeHandle target="detail" sidebarRef={sidebarRef} detailRef={detailRef} setSidebarWidth={setSidebarWidth} setDetailWidth={setDetailWidth} />
       <DetailPanel
         selectedNode={selectedNode}
         stockPrices={stockPrices}

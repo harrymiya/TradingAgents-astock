@@ -1,6 +1,13 @@
 import React from 'react';
 import './Controls.css';
 
+const METRICS = [
+  { key: 'yearChg', label: '年度涨幅' },
+  { key: 'chg', label: '今日涨跌' },
+  { key: 'volume', label: '成交量' },
+  { key: 'amplitude', label: '振幅' },
+];
+
 export default function Controls({
   colorMetric, onColorMetricChange,
   layoutMode, onLayoutModeChange,
@@ -46,12 +53,17 @@ export default function Controls({
       </div>
       <div className="controls-center">
         <label>着色:</label>
-        <select value={colorMetric} onChange={e => onColorMetricChange(e.target.value)}>
-          <option value="chg">今日涨跌</option>
-          <option value="yearChg">年度涨跌</option>
-          <option value="volume">成交量</option>
-          <option value="amplitude">振幅</option>
-        </select>
+        <div className="color-metric-btns">
+          {METRICS.map(m => (
+            <button
+              key={m.key}
+              className={`metric-btn ${colorMetric === m.key ? 'active' : ''}`}
+              onClick={() => onColorMetricChange(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
       <button className="refresh-btn" onClick={onRefresh} disabled={loading}>
         {loading ? '⏳ 刷新中...' : '🔄 刷新'}
