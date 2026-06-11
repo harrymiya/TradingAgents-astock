@@ -239,11 +239,6 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                 {item.chain && (
                   <span className="screening-chain-tag">{item.chain.replace(/\(qcc\)/g,'').slice(0, 8)}</span>
                 )}
-                {item.total_score !== undefined && (
-                  <span className={`screening-score ${item.total_score >= 15 ? 'high' : item.total_score >= 10 ? 'mid' : ''}`}>
-                    {item.total_score}分
-                  </span>
-                )}
                 <span className={`screening-chg ${chg >= 0 ? 'up' : 'down'}`}>
                   {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
                 </span>
@@ -251,15 +246,6 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                 {itemAnalyzing && <span className="screening-spin">🔄</span>}
               </div>
               <div className="golden-pit-detail-v3">
-                <div className="golden-pit-signal-row">
-                  {item.total_score >= 15 ? (
-                    <span className="signal-badge signal-1">⭐ 黄金坑1级</span>
-                  ) : item.total_score >= 10 ? (
-                    <span className="signal-badge signal-2">✨ 黄金坑2级</span>
-                  ) : (
-                    <span className="signal-badge signal-3">🔹 黄金坑3级</span>
-                  )}
-                </div>
                 <div className="golden-pit-metrics">
                   <span className="gp-metric">ma60={item.ma60}%</span>
                   <span className="gp-metric">pos20={item.pos20}%</span>
