@@ -30,6 +30,7 @@ export default defineConfig({
     },
   },
   build: {
+    cssMinify: false,
     rollupOptions: {
       output: {
         format: 'iife',

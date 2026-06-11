@@ -42,28 +42,6 @@ export default function Controls({
             </svg>
             横向
           </button>
-          <button
-            className={`mode-btn ${layoutMode === 'star' ? 'active' : ''}`}
-            onClick={() => onLayoutModeChange('star')}
-            title="星形放射：一级节点为圆心，子环节四面放射"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="3" cy="3" r="2.5" fill="currentColor"/>
-              <circle cx="7" cy="3" r="2.5" fill="currentColor"/>
-              <circle cx="11" cy="3" r="2.5" fill="currentColor"/>
-              <line x1="5.5" y1="3" x2="4.5" y2="3" stroke="currentColor" strokeWidth="1"/>
-              <line x1="9.5" y1="3" x2="8.5" y2="3" stroke="currentColor" strokeWidth="1"/>
-              <polygon points="6,2.5 6.5,3 6,3.5" fill="currentColor"/>
-              <polygon points="10,2.5 10.5,3 10,3.5" fill="currentColor"/>
-              <circle cx="3" cy="9" r="1.2" fill="currentColor" opacity="0.6"/>
-              <circle cx="3" cy="11.5" r="1.2" fill="currentColor" opacity="0.6"/>
-              <circle cx="1.5" cy="10.5" r="1.2" fill="currentColor" opacity="0.6"/>
-              <circle cx="4.5" cy="10.5" r="1.2" fill="currentColor" opacity="0.6"/>
-              <circle cx="7" cy="9" r="1.2" fill="currentColor" opacity="0.6"/>
-              <circle cx="11" cy="9" r="1.2" fill="currentColor" opacity="0.6"/>
-            </svg>
-            星形
-          </button>
         </div>
       </div>
       <div className="controls-center">

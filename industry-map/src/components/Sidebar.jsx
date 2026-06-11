@@ -25,7 +25,8 @@ export default function Sidebar({ industries, current, onSelect }) {
       for (const sec of info.sections) {
         for (const link of sec.links) {
           for (const c of (link.stocks || [])) {
-            if (/^\d{6}$/.test(c) && codes.length < 5) codes.push(c);
+            const code = typeof c === 'string' ? c : c.code;
+            if (/^\d{6}$/.test(code) && codes.length < 5) codes.push(code);
           }
         }
       }

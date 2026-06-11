@@ -32,7 +32,7 @@ function IndustryOverview({ industryName, industryData }) {
   );
 }
 
-function StockDetail({ code, stockPrices, onSelectStock }) {
+function StockDetail({ code, stockPrices }) {
   const price = stockPrices[code] || {};
   return (
     <div className="stock-detail">
@@ -78,12 +78,14 @@ function LinkDetail({ node, section, stockPrices }) {
         {section.links.map((link, i) => (
           <div key={i} className="link-stock-group">
             <div className="link-title">{link.name}</div>
-            {link.stocks.map((code, j) => {
+            {link.stocks.map((stock, j) => {
+              const code = typeof stock === 'string' ? stock : stock.code;
+              const stockName = typeof stock === 'string' ? (stockNames[code] || code) : stock.name;
               const price = stockPrices[code] || {};
               return (
-                <div key={j} className="stock-item">
+                <div key={code || j} className="stock-item">
                   <span className="stock-dot" style={{background: getChgColor(price.chg || 0)}}></span>
-                  <span className="stock-name">{price.name || code}</span>
+                  <span className="stock-name">{price.name || stockName}</span>
                   <span className="stock-chg" style={{color: price.chg >= 0 ? '#ff6b6b' : '#51cf66'}}>
                     {price.chg >= 0 ? '+' : ''}{price.chg?.toFixed(1) || '--'}%
                   </span>
@@ -143,7 +145,7 @@ export default function DetailPanel({
           currentSection = sec;
           break;
         }
-        if (isStock && link.stocks.includes(code)) {
+        if (isStock && link.stocks.some(s => (typeof s === 'string' ? s : s.code) === code)) {
           currentSection = sec;
           break;
         }

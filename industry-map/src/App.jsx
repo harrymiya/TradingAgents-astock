@@ -33,7 +33,8 @@ function collectCodes(industry) {
   for (const sec of industry.sections) {
     for (const link of sec.links) {
       for (const c of (link.stocks || [])) {
-        if (/^\d{6}$/.test(c)) codes.push(c);
+        const code = typeof c === 'string' ? c : c.code;
+        if (/^\d{6}$/.test(code)) codes.push(code);
       }
     }
   }

@@ -19,6 +19,11 @@
   min-height: 0;
 }
 
+/* 横向模式下graph-container允许滚动，支持zoom缩放 */
+.graph-container:has(.graph-wrapper[data-mode="horizontal"]) {
+  overflow: auto;
+}
+
 .graph-canvas-wrap {
   position: absolute;
   inset: 0;

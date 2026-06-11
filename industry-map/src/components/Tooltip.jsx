@@ -39,7 +39,7 @@ export default function Tooltip({ data, onClose }) {
           <h3>{node.name} ({node.code})</h3>
           <div className="row">
             <span className="label">价格</span>
-            <span className="value">{node.price.toFixed(2)}</span>
+            <span className="value">{(node.price || 0).toFixed(2)}</span>
           </div>
           <div className="row">
             <span className="label">今日涨幅</span>

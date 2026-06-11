@@ -53,10 +53,11 @@ function buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onN
       nodes.push(linkNode);
       idx++;
 
-      for (const code of (link.stocks || [])) {
-        const price = stockPrices[code] || {};
-        const stockName = (typeof code === 'object') ? code.name : (price.name || code);
-        const codeStr = (typeof code === 'object') ? code.code : code;
+      for (const raw of (link.stocks || [])) {
+        const code = typeof raw === 'string' ? raw : raw.code;
+        const stockName = typeof raw === 'object' ? raw.name : (stockPrices[code]?.name || code);
+        const codeStr = code;
+        const price = stockPrices[codeStr] || {};
         const { fillColor, r } = getStockColorAndRadius(price, colorMetric);
         nodes.push({
           id: codeStr, name: stockName, code: codeStr, type: 'stock',
@@ -169,7 +170,9 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
     for (let i = 0; i < sections.length; i++) colX[i] = offsetX + i * (COL_W + COL_GAP) + COL_W / 2;
 
     const g = svg.append('g');
-    // 横向表格模式不启用zoom，防止鼠标滚动导致空白
+    // 横向表格支持鼠标滚轮缩放（点击空白区域触发，点击行/按钮时不触发）
+    const zoom = d3.zoom().scaleExtent([0.3, 5]).on('zoom', (event) => g.attr('transform', event.transform));
+    svg.call(zoom);
 
     for (let i = 0; i < sections.length; i++) {
       const cx = colX[i];
@@ -184,14 +187,14 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
         g.append('text').attr('x', cx - COL_W / 2 + 12).attr('y', yPos + 12).attr('fill', subColor).attr('font-size', 11).attr('font-weight', 700).text(link.name.length > 12 ? link.name.slice(0, 12) + '..' : link.name);
 
         let sy = yPos + 18;
-        for (const code of (link.stocks || [])) {
-          const price = stockPrices[code] || {};
-          const stockName = (typeof code === 'object') ? code.name : (price.name || code);
-          const codeStr = (typeof code === 'object') ? code.code : code;
-          const { fillColor } = getStockColorAndRadius(price, colorMetric);
+        for (const raw of (link.stocks || [])) {
+          const code = typeof raw === 'string' ? raw : raw.code;
+          const stockName = typeof raw === 'object' ? raw.name : (stockPrices[code]?.name || code);
+          const { fillColor } = getStockColorAndRadius(stockPrices[code] || {}, colorMetric);
           const nameLabel = stockName.length > 10 ? stockName.slice(0, 10) + '..' : stockName;
-          const cgStr = ((price.chg || 0) >= 0 ? '+' : '') + (price.chg || 0).toFixed(1) + '%';
-          const cgColor = (price.chg || 0) >= 0 ? '#ff6b6b' : '#51cf66';
+          const cg = (stockPrices[code]?.chg || 0);
+          const cgStr = (cg >= 0 ? '+' : '') + cg.toFixed(1) + '%';
+          const cgColor = cg >= 0 ? '#ff6b6b' : '#51cf66';
 
           // 每行公司整组：圆点+名称+涨跌幅，整行可点击
           const row = g.append('g').attr('class', 'stock-row').style('cursor', 'pointer');
@@ -200,12 +203,12 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
           row.append('text').attr('x', cx + COL_W / 2 - 55).attr('y', sy + 10).attr('fill', cgColor).attr('font-size', 8).text(cgStr);
 
           // 点击整行
-          row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: codeStr, code: codeStr, name: stockName, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
-          row.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
+          row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: stockName, type: 'stock', chg: stockPrices[code]?.chg || 0, price: stockPrices[code]?.price || 0 }); });
+          row.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: stockName, type: 'stock', chg: stockPrices[code]?.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
           row.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
 
           // 选中高亮框（蓝色边框框住整行）
-          if (selectedNode && selectedNode.id === codeStr) {
+          if (selectedNode && selectedNode.id === code) {
             row.insert('rect', ':first-child').attr('class', 'sel-box')
               .attr('x', cx - COL_W / 2 + 6).attr('y', sy - 2)
               .attr('width', COL_W - 12).attr('height', 18)
@@ -292,10 +295,10 @@ function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onN
         const stkAngle = angle;
         const stkBaseR = LINK_RADIUS + 8;
         for (let k = 0; k < stks.length; k++) {
-          const code = stks[k];
+          const raw = stks[k];
+          const code = typeof raw === 'string' ? raw : raw.code;
+          const stockName = typeof raw === 'object' ? raw.name : (stockPrices[code]?.name || code);
           const price = stockPrices[code] || {};
-          const stockName = (typeof code === 'object') ? code.name : (price.name || code);
-          const codeStr = (typeof code === 'object') ? code.code : code;
           const { fillColor } = getStockColorAndRadius(price, colorMetric);
           const sOff = stkBaseR + k * 60;
           const sx = lx + sOff * Math.cos(stkAngle);
@@ -315,12 +318,12 @@ function buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onN
           textEl.append('tspan').attr('fill', cgColor).text(cgStr);
 
           // 点击整组
-          sg.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: codeStr, code: codeStr, name: stockName, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
-          sg.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: price.name || code, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
+          sg.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: stockName, type: 'stock', chg: price.chg || 0, price: price.price || 0 }); });
+          sg.on('mouseenter', function(event) { if (onTooltip) { const rect = svg.node().getBoundingClientRect(); onTooltip({ node: { id: code, code, name: stockName, type: 'stock', chg: price.chg || 0 }, x: event.clientX - rect.left, y: event.clientY - rect.top }); } });
           sg.on('mouseleave', () => { if (onTooltip) onTooltip(null); });
 
           // 选中蓝色边框（框住圆点+名称+涨跌幅）
-          if (selectedNode && selectedNode.id === codeStr) {
+          if (selectedNode && selectedNode.id === code) {
             const boxW = isRight ? 100 : 90;
             sg.insert('rect', ':first-child').attr('class', 'sel-box')
               .attr('x', isRight ? sx - 4 : sx - boxW + 4).attr('y', sy - 6)
@@ -356,8 +359,6 @@ export default function GraphCanvas({
       buildForceGraph(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
     } else if (layoutMode === 'horizontal') {
       buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
-    } else if (layoutMode === 'star') {
-      buildStarLayout(svg, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode, width, height);
     }
   }, [layoutMode, industry, stockPrices, colorMetric, onTooltip, onNodeClick, selectedNode]);
 
@@ -369,7 +370,7 @@ export default function GraphCanvas({
   }, [buildGraph]);
 
   return (
-    <div className="graph-wrapper" ref={containerRef}>
+    <div className="graph-wrapper" ref={containerRef} data-mode={layoutMode}>
       <svg ref={svgRef}></svg>
     </div>
   );
