@@ -8,7 +8,7 @@ const STRATEGY_META = {
   s3: { label: 'S3选股', icon: '⚡', desc: '超跌反弹(位<20,涨3-7%,vr1.2-2.5,MA20<-8%)' },
   sanmai: { label: '三买选股', icon: '🔱', desc: '中枢突破+回抽不破ZG' },
   sanyin: { label: '三阴选股', icon: '🌧️', desc: '涨停启动→3日缩量回调→今日企稳' },
-  golden_pit: { label: '黄金坑选股', icon: '🕳️', desc: '优质产业链(星球)+60日线不破+缩量<0.7+7维评分' },
+  golden_pit: { label: '黄金坑选股', icon: '🕳️', desc: '星球方法论V3：60日线不破+缩量<0.7+7维评分+信号分级' },
 };
 
 async function fetchRealTimePrices(codes) {
@@ -234,13 +234,43 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
 
       {activeStrategy && !loading[activeStrategy] && currentData && (
         <div className="screening-summary">
-          共 {currentData.count} 只 → Top10｜点击任一只启动深度分析
+          <div className="summary-row">
+            <span className="summary-count">共 {currentData.count} 只 → Top{Math.min(currentData.results?.length || 0, 10)}</span>
+            {currentData.golden_pit_version === 'v3' && (
+              <span className="golden-pit-v3-badge">v3</span>
+            )}
+          </div>
           {currentData.golden_pit_version === 'v3' && (
-            <span className="golden-pit-v3-badge">
-              {' '}v3{currentData.market_tag && ` | 大盘${currentData.market_tag}`}
-              {currentData.ma60_threshold && ` | ma60>${currentData.ma60_threshold}%`}
-            </span>
+            <div className="summary-row market-row">
+              <span className={`market-tag-${currentData.market_tag?.includes('强势') ? 'up' : currentData.market_tag?.includes('弱势') ? 'down' : 'mid'}`}>
+                {currentData.market_tag || '?'}
+              </span>
+              <span className="summary-detail">涨跌比{currentData.market_up_ratio}%</span>
+              <span className="summary-detail">ma60&gt;{currentData.ma60_threshold}%</span>
+              {currentData.market_warning && (
+                <span className="summary-warning">{currentData.market_warning.replace(/→ma60.*/,'')}</span>
+              )}
+            </div>
           )}
+          {currentData.golden_pit_version === 'v3' && currentData.results?.length > 0 && (
+            <div className="summary-row signal-dist">
+              {(() => {
+                const g1 = currentData.results.filter(r => r.total_score >= 15).length;
+                const g2 = currentData.results.filter(r => r.total_score >= 10 && r.total_score < 15).length;
+                const g3 = currentData.results.filter(r => r.total_score < 10).length;
+                return (
+                  <>
+                    {g1 > 0 && <span className="signal-count s1">⭐1×{g1}</span>}
+                    {g2 > 0 && <span className="signal-count s2">✨2×{g2}</span>}
+                    {g3 > 0 && <span className="signal-count s3">🔹3×{g3}</span>}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+          <div className="summary-row hint">
+            点击任一只启动TradingAgents深度分析
+          </div>
         </div>
       )}
 

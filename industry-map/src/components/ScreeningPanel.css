@@ -385,3 +385,66 @@
   border-radius: 4px;
   margin-left: 4px;
 }
+
+/* 新摘要区样式 */
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.summary-row:first-child {
+  margin-top: 0;
+}
+.summary-count {
+  font-weight: 600;
+  color: #c9d1d9;
+}
+.summary-detail {
+  color: #6e7681;
+}
+.market-tag-up {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+.market-tag-mid {
+  color: #d29922;
+  font-weight: 600;
+}
+.market-tag-down {
+  color: #58a6ff;
+  font-weight: 600;
+}
+.summary-warning {
+  color: #ff6b6b;
+  font-size: 9px;
+}
+.signal-dist {
+  gap: 4px;
+}
+.signal-count {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.signal-count.s1 {
+  color: #d29922;
+  background: #2d2a12;
+  border: 1px solid #d29922;
+}
+.signal-count.s2 {
+  color: #58a6ff;
+  background: #1a253b;
+  border: 1px solid #58a6ff;
+}
+.signal-count.s3 {
+  color: #8b949e;
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+.hint {
+  color: #6e7681;
+  font-size: 9px;
+}
