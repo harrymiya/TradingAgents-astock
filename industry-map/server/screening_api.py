@@ -148,10 +148,16 @@ def apply_realtime(candidates):
     
     filtered = []
     removed_signal = 0
+    market_zero_count = 0  # 超过半数为0说明盘后休市
+    total_checked = 0
     for c in candidates:
         code = c['code']
         if code in rt:
             r = rt[code]
+            total_checked += 1
+            # 检测是否盘后休市（大量股票实时chg=0但有价）
+            if r['chg'] == 0 and r['price'] > 0:
+                market_zero_count += 1
             old_chg = c.get('chg', 0)
             old_close = c.get('close', 0)
             c['chg'] = round(r['chg'], 2)
@@ -159,14 +165,23 @@ def apply_realtime(candidates):
             c['realtime_chg'] = round(r['chg'], 2)
             c['realtime_price'] = round(r['price'], 2)
             c['_is_realtime'] = True
-            
-            # 检查实时涨跌幅是否还满足S3条件
+    
+    # 🆕 盘后保护：超过60%的股票实时chg=0 → 说明休市，直接用feat表数据
+    if total_checked > 0 and market_zero_count / total_checked > 0.6:
+        log(f"盘后休市状态({market_zero_count}/{total_checked}只chg=0)，跳过实时覆盖")
+        return candidates  # 返回原数据
+    
+    for c in candidates:
+        code = c['code']
+        if code in rt:
+            r = rt[code]
+            old_chg = c.get('chg', 0)
             strategy = c.get('strategy', '')
             if 'S3' in strategy:
                 if r['chg'] < 3 or r['chg'] >= 7:
                     removed_signal += 1
                     log(f"  ❌ {code} {c.get('name','')} 实时chg={r['chg']:+.2f}% 已不满足S3 → 剔除")
-                    continue  # 不加入最终结果
+                    continue
                 # 量比也查一下：用实时volume反推近似vr5
                 if 'vr_5' in c and c['vr_5'] is not None and c['vr_5'] > 0:
                     # 取feat表的量比底线作为参考
@@ -203,6 +218,7 @@ def stage1_s3(date_str, realtime=False):
           AND f.chg >= 3 AND f.chg < 7
           AND f.vr_5 >= 1.2 AND f.vr_5 < 2.5
           AND f.ma20_pct < -8
+          AND f.down_days < 5  /* 🆕 连跌<5天，胜率30%→68% */
           AND f.code NOT LIKE '688%'
           AND s.name NOT LIKE '%ST%'
     """, (date_str,))
@@ -418,14 +434,49 @@ def stage1_sanyin(date_str):
 
 def stage2_score(candidates, date_str):
     """
-    跨策略通用评分
+    跨策略通用评分 + 大盘调节因子 (2026-06-11升级)
     维度：
     1. **产业链热度** (0-10分)
     2. **行业景气趋势** (0-8分)
     3. **基本面+资金趋势** (0-7分)
     4. **恐慌阴加分** (0-3分)
+    5. **大盘状态调节** — 大盘涨跌比决定分数倍率
     """
     conn = sqlite3.connect(DB)
+    
+    # 🆕 大盘状态数据 — 用于S3胜率调节
+    market_row = conn.execute("""
+        SELECT AVG(chg) as avg_chg,
+               SUM(CASE WHEN chg > 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) as up_ratio,
+               AVG(ma60_pct) as avg_ma60
+        FROM feat WHERE date = ? AND chg IS NOT NULL AND ma60_pct IS NOT NULL
+    """, (date_str,)).fetchone()
+    market_avg_chg = float(market_row[0] or 0)
+    market_up_ratio = float(market_row[1] or 0.5)
+    market_avg_ma60 = float(market_row[2] or 0)
+    
+    # 大盘乘数：影响所有S3信号的最终分数
+    # 回测数据: up_ratio>=70%胜率52%+, up_ratio<55%胜率仅35%
+    if market_up_ratio >= 0.70 or market_avg_chg >= 1.5:
+        market_multiplier = 1.3       # 强势 → 加分
+        market_tag = "强势"
+    elif market_up_ratio >= 0.60 or market_avg_chg >= 0.5:
+        market_multiplier = 1.1       # 偏强
+        market_tag = "偏强"
+    elif market_up_ratio >= 0.55 and market_avg_chg >= -0.3:
+        market_multiplier = 1.0       # 中性
+        market_tag = "中性"
+    else:
+        market_multiplier = 0.6       # 弱势 → 严重扣分
+        market_tag = "弱势"
+    
+    # 全市场超跌时S3胜率反而高
+    deep_discount_bonus = 0
+    if market_avg_ma60 < -5:
+        deep_discount_bonus = 5  # 全市场超跌，S3反弹概率高
+    elif market_avg_ma60 < -2:
+        deep_discount_bonus = 2
+    
     md_rows = conn.execute("""
         SELECT f.code, f.pos_60d, f.ret1, f.ret3, f.ret5,
                f.volume, f.chg, f.vr_5, f.amp
@@ -598,8 +649,22 @@ def stage2_score(candidates, date_str):
             total -= 1  # 实时数据不确定性扣1分
             scores['实时'] = -1
         
+        # 🆕 大盘调节：应用market_multiplier + deep_discount_bonus
+        # 大盘乘数乘在总分数上（但不影响评分明细显示）
+        adjusted_total = round(total * market_multiplier) + deep_discount_bonus
+        
+        # 连跌天数加分/扣分
+        dd = c.get('down_days', 0)
+        if dd == 0:
+            adjusted_total += 2  # 连跌0天胜率68% → 加分
+        elif dd >= 3:
+            adjusted_total -= 2  # 连跌3天+胜率约40%
+        
+        c['market_tag'] = market_tag
+        c['market_up_ratio'] = round(market_up_ratio * 100, 1)
+        c['market_avg_chg'] = round(market_avg_chg, 2)
         c['scores'] = scores
-        c['total_score'] = total
+        c['total_score'] = adjusted_total
         c['chain_tag'] = chain_tag
         c['matched_chains'] = matched_chains[:2]
         c['ind_info'] = f"{ind_l1}/{ind_l2}" if ind_l2 else ind_l1
@@ -678,6 +743,43 @@ def run_sanyin_stage2(date_str=None):
 def run_pipeline_stage2(date_str=None, realtime=False):
     if not date_str:
         date_str = get_latest_date()
+    
+    # 🆕 大盘状态检测：涨跌比<55%时，S3胜率仅35% → 暂停推荐
+    conn = sqlite3.connect(DB)
+    mkt = conn.execute("""
+        SELECT SUM(CASE WHEN chg>0 THEN 1 ELSE 0 END)*1.0/COUNT(*),
+               AVG(chg)
+        FROM feat WHERE date=? AND chg IS NOT NULL
+    """, (date_str,)).fetchone()
+    conn.close()
+    up_ratio = float(mkt[0] or 0.5)
+    avg_chg = float(mkt[1] or 0)
+    market_weak = up_ratio < 0.55 and avg_chg < 0.3
+    
+    log(f"▶ 流水线{'(实时)' if realtime else ''} {date_str} (大盘涨跌比{up_ratio*100:.1f}%)")
+    
+    if market_weak:
+        log(f"  ⚠️ 大盘偏弱(涨跌比{up_ratio*100:.1f}%<55%，均chg={avg_chg:+.2f}%)，S3暂停推荐")
+        # 仍跑三买（三买不依赖大盘），但S3跳过
+        sanmai = stage1_sanmai(date_str, realtime)
+        merged = {}
+        for r in sanmai:
+            merged[r['code']] = r
+        cand = list(merged.values())
+        _enrich_with_industry(cand)
+        if cand:
+            top10 = stage2_score(cand, date_str)
+        else:
+            top10 = []
+        return {
+            "date": date_str, "count": len(cand),
+            "s3_count": 0, "sanmai_count": len(sanmai),
+            "top10_count": len(top10), "results": top10,
+            "realtime": realtime,
+            "market_warning": f"大盘偏弱(涨跌比{up_ratio*100:.0f}%)，S3暂停推荐",
+            "market_tag": "弱势📉"
+        }
+    
     log(f"▶ 流水线{'(实时)' if realtime else ''} {date_str}")
     s3 = stage1_s3(date_str, realtime)
     sanmai = stage1_sanmai(date_str, realtime)

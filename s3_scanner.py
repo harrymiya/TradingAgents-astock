@@ -57,6 +57,7 @@ def scan(date_str=None, top_n=20, realtime=False):
           AND f.chg >= 3 AND f.chg < 7        -- 优化: 上限7%不是8%
           AND f.vr_5 >= 1.2 AND f.vr_5 < 2.5   -- 优化: 上限2.5不是3
           AND f.ma20_pct < -8                   -- ★核心新增: 深偏离ma20
+          AND f.down_days < 5                   -- ★升级: 连跌<5天(胜率30%->68%)
           -- 排除688打头（科创板）
           AND f.code NOT LIKE '688%'
           -- 排除ST
@@ -125,6 +126,10 @@ def scan(date_str=None, top_n=20, realtime=False):
     market_chg = cur.fetchone()[0] or 0
     
     market_state = "极弱"
+    # 涨跌比数据
+    cur.execute("SELECT SUM(CASE WHEN chg>0 THEN 1 ELSE 0 END)*1.0/COUNT(*) FROM feat WHERE date=? AND chg IS NOT NULL", (date_str,))
+    up_ratio = cur.fetchone()[0] or 0.5
+    
     if market_chg > 0.5:
         market_state = "强势"
     elif market_chg > 0:
