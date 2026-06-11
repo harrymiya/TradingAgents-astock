@@ -150,7 +150,6 @@
   font-family: monospace;
   font-size: 10px;
   flex-shrink: 0;
-  min-width: 48px;
 }
 
 .screening-name {
@@ -376,6 +375,14 @@
   padding: 1px 5px;
   border-radius: 3px;
   color: #8b949e;
+}
+.screening-code-on-right {
+  margin-left: auto;
+  color: #6e7681;
+  font-family: monospace;
+  font-size: 9px;
+  background: transparent;
+  padding: 1px 2px;
 }
 .golden-pit-score-detail {
   font-size: 9px;

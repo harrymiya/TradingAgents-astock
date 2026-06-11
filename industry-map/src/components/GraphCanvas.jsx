@@ -239,12 +239,13 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
           const row = g.append('g').attr('class', 'stock-row').style('cursor', 'pointer');
           row.append('circle').attr('cx', cx - COL_W / 2 + 14).attr('cy', sy + 7).attr('r', 4).attr('fill', fillColor).attr('fill-opacity', 1.0).attr('stroke', fillColor).attr('stroke-width', 2.5);
           const nameText = row.append('text').attr('x', cx - COL_W / 2 + 24).attr('y', sy + 10).attr('fill', '#c9d1d9').attr('font-size', 9).text(nameLabel);
-          // 现价（紧跟在名称后面）
+          // 右侧：现价 + 着色指标，从左到右：现价(灰)→着色指标值(彩色)，靠右对齐
           const priceVal = p.price || 0;
-          row.append('text').attr('x', cx - COL_W / 2 + 24).attr('y', sy + 10).attr('fill', '#6e7681').attr('font-size', 8)
-            .attr('dx', nameLabel.length * 6 + 4).text(priceVal.toFixed(2));
-          // 着色指标（右侧对齐）
-          row.append('text').attr('x', cx + COL_W / 2 - 55).attr('y', sy + 10).attr('fill', metricColor).attr('font-size', 8).text(metricStr);
+          // 现价（左侧第一）
+          row.append('text').attr('x', cx + COL_W / 2 - 8).attr('y', sy + 10).attr('fill', '#6e7681').attr('font-size', 8).attr('text-anchor', 'end')
+            .attr('dx', -metricStr.length * 5.5 - 12).text(priceVal.toFixed(2));
+          // 着色指标（现价右侧，最右）
+          row.append('text').attr('x', cx + COL_W / 2 - 8).attr('y', sy + 10).attr('fill', metricColor).attr('font-size', 8).attr('text-anchor', 'end').text(metricStr);
 
           // 点击整行
           row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: stockName, type: 'stock', chg: stockPrices[code]?.chg || 0, price: stockPrices[code]?.price || 0 }); });

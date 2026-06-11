@@ -117,21 +117,46 @@ export default function App() {
 
   useEffect(() => { fetchPrices(); }, [currentIndustry, fetchPrices]);
 
+  const handleSelectStock = useCallback((item) => {
+    // 从选股列表选中 → 同步到图高亮、K线、详情
+    const node = {
+      id: item.code,
+      code: item.code,
+      name: item.name,
+      type: 'stock',
+      chg: item.chg || 0,
+      price: item.close || 0,
+      // 携带黄金坑详情
+      chain: item.chain,
+      score_detail: item.score_detail,
+      total_score: item.total_score,
+      xies_comment: item.xies_comment,
+      macro_comment: item.macro_comment,
+      ma60: item.ma60,
+      pos20: item.pos20,
+      ma20: item.ma20,
+      vr5: item.vr5,
+      mcap: item.mcap,
+      dd: item.dd,
+    };
+    setSelectedNode(node);
+    setTooltip(null);
+    setDetailHistory([]);
+    if (node.code && /^\d{6}$/.test(node.code)) {
+      setKlineStock({ code: node.code, name: node.name || node.code });
+    }
+  }, []);
+
+  // 图上点击节点
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
     setTooltip(null);
     setDetailHistory([]);
-    // 公司节点显示K线
     if (node && node.code && /^\d{6}$/.test(node.code)) {
       setKlineStock({ code: node.code, name: node.name || node.code });
     } else {
       setKlineStock(null);
     }
-  }, []);
-
-  const handleSelectStock = useCallback(({ code, name, linkName }) => {
-    setDetailHistory(prev => [...prev, { code, name, linkName }]);
-    setKlineStock({ code, name: name || code });
   }, []);
 
   const handleBack = useCallback(() => {
@@ -146,6 +171,8 @@ export default function App() {
         industries={frameworksData}
         current={currentIndustry}
         onSelect={setCurrentIndustry}
+        onSelectScreening={handleSelectStock}
+        selectedCode={selectedNode?.code}
       />
       <div className="main">
         <Controls

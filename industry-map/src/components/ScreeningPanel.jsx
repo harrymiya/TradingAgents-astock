@@ -234,10 +234,9 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
               onClick={() => handleClickStock(item)}
             >
               <div className="screening-item-header">
-                <span className="screening-code">{item.code}</span>
                 <span className="screening-name">{item.name}</span>
                 {item.chain && (
-                  <span className="screening-chain-tag">{item.chain.replace(/\(qcc\)/g,'').slice(0, 8)}</span>
+                  <span className="screening-chain-tag">{item.chain.replace(/\\(qcc\\)/g,'').slice(0, 8)}</span>
                 )}
                 <span className={`screening-chg ${chg >= 0 ? 'up' : 'down'}`}>
                   {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
@@ -253,6 +252,7 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                   <span className="gp-metric">vr5={item.vr5?.toFixed(2)}x</span>
                   {item.mcap > 0 && <span className="gp-metric">{item.mcap >= 100 ? `${(item.mcap/100).toFixed(0)}百亿` : `${item.mcap.toFixed(0)}亿`}</span>}
                   {item.dd > 0 && <span className="gp-metric">连跌{item.dd}天</span>}
+                  <span className="gp-metric screening-code-on-right">{item.code}</span>
                 </div>
                 <div className="golden-pit-score-detail">
                   <span>链{sd.chain ?? 0}</span>

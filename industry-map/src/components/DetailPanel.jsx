@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './DetailPanel.css';
 
 function getChgColor(chg) {
@@ -32,40 +32,159 @@ function IndustryOverview({ industryName, industryData }) {
   );
 }
 
-function StockDetail({ code, stockPrices }) {
+function getSignalEmoji(score) {
+  if (score >= 15) return '⭐';
+  if (score >= 10) return '✨';
+  return '🔹';
+}
+
+function getSignalLabel(score) {
+  if (score >= 15) return '1级';
+  if (score >= 10) return '2级';
+  return '3级';
+}
+
+/** 公司详情面板 — 信息越多越好 */
+function StockDetail({ node, stockPrices }) {
+  const code = node.code;
   const price = stockPrices[code] || {};
+
+  // 处理node中可能传来的黄金坑数据
+  const chain = node.chain;
+  const sd = node.score_detail || {};
+  const totalScore = node.total_score;
+  const xies = node.xies_comment;
+  const macro = node.macro_comment;
+
+  // 基础行情数据：优先用node携带的，如果没有则用stockPrices
+  const displayChg = node.chg != null ? node.chg : (price.chg || 0);
+  const displayPrice = node.price != null ? node.price : (price.price || 0);
+
   return (
     <div className="stock-detail">
-      <div className="stock-row">
-        <span className="stock-name">{price.name || code}</span>
-        <span className="stock-code">{code}</span>
+      {/* 头部：名称+代码 */}
+      <div className="stock-header">
+        <span className="sd-name">{node.name || price.name || code}</span>
+        <span className="sd-code">{code}</span>
       </div>
-      <div className="stock-row">
-        <span>现价</span>
-        <span style={{color: getChgColor(price.chg || 0)}}>
-          {price.price?.toFixed(2) || '--'}
-        </span>
+
+      {/* 黄金坑评分徽标 */}
+      {totalScore != null && (
+        <div className="sd-signal-badge" style={{
+          color: totalScore >= 15 ? '#d29922' : totalScore >= 10 ? '#58a6ff' : '#8b949e',
+          borderColor: totalScore >= 15 ? '#d29922' : totalScore >= 10 ? '#58a6ff' : '#30363d',
+        }}>
+          {getSignalEmoji(totalScore)} 黄金坑{getSignalLabel(totalScore)} — {totalScore}分
+        </div>
+      )}
+
+      {/* ===== 基础行情 ===== */}
+      <div className="sd-section">
+        <div className="sd-section-title">📊 实时行情</div>
+        <div className="sd-grid">
+          <div className="sd-grid-item">
+            <span className="sd-label">现价</span>
+            <span className="sd-value" style={{color: getChgColor(displayChg)}}>{displayPrice.toFixed(2)}</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">涨跌幅</span>
+            <span className="sd-value" style={{color: displayChg >= 0 ? '#ff6b6b' : '#51cf66'}}>
+              {displayChg >= 0 ? '+' : ''}{displayChg.toFixed(1)}%
+            </span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">年度涨跌</span>
+            <span className="sd-value" style={{color: (price.yearChg || 0) >= 0 ? '#ff6b6b' : '#51cf66'}}>
+              {(price.yearChg || 0) >= 0 ? '+' : ''}{(price.yearChg || 0).toFixed(1)}%
+            </span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">成交量</span>
+            <span className="sd-value">{(price.volume || 0) > 10000 ? Math.round(price.volume / 10000) + '万' : (price.volume || '--')}</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">振幅</span>
+            <span className="sd-value">{(price.amplitude || 0).toFixed(1)}%</span>
+          </div>
+        </div>
       </div>
-      <div className="stock-row">
-        <span>涨跌幅</span>
-        <span style={{color: price.chg >= 0 ? '#ff6b6b' : '#51cf66'}}>
-          {price.chg >= 0 ? '+' : ''}{price.chg?.toFixed(1) || '--'}%
-        </span>
+
+      {/* ===== 黄金坑技术指标 ===== */}
+      <div className="sd-section">
+        <div className="sd-section-title">🕳️ 黄金坑指标</div>
+        <div className="sd-grid">
+          <div className="sd-grid-item">
+            <span className="sd-label">链</span>
+            <span className="sd-value sd-chain-tag">{chain || '未归属'}</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">ma60</span>
+            <span className="sd-value" style={{color: (node.ma60 || 0) <= -8 ? '#51cf66' : '#8b949e'}}>{node.ma60 ?? '--'}%</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">pos20</span>
+            <span className="sd-value" style={{color: (node.pos20 || 0) < 10 ? '#51cf66' : '#ff6b6b'}}>{node.pos20 ?? '--'}%</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">ma20</span>
+            <span className="sd-value" style={{color: (node.ma20 || 0) < 0 ? '#ff6b6b' : '#8b949e'}}>{node.ma20 ?? '--'}%</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">vr5</span>
+            <span className="sd-value" style={{color: (node.vr5 || 0) <= 0.7 ? '#58a6ff' : '#8b949e'}}>{node.vr5?.toFixed(2) ?? '--'}x</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">市值</span>
+            <span className="sd-value">{(node.mcap || 0) >= 100 ? `${(node.mcap / 100).toFixed(0)}百亿` : `${(node.mcap || 0).toFixed(0)}亿`}</span>
+          </div>
+          <div className="sd-grid-item">
+            <span className="sd-label">连跌</span>
+            <span className="sd-value" style={{color: (node.dd || 0) >= 3 ? '#ff6b6b' : '#8b949e'}}>{node.dd ?? '--'}天</span>
+          </div>
+        </div>
       </div>
-      <div className="stock-row">
-        <span>年度涨跌</span>
-        <span style={{color: price.yearChg >= 0 ? '#ff6b6b' : '#51cf66'}}>
-          {price.yearChg >= 0 ? '+' : ''}{price.yearChg?.toFixed(1) || '--'}%
-        </span>
+
+      {/* ===== 7维评分详情 ===== */}
+      <div className="sd-section">
+        <div className="sd-section-title">📐 7维评分</div>
+        <div className="sd-score-grid">
+          <span className="sd-score-item" style={{color: '#d29922'}}>链{sd.chain ?? 0}</span>
+          <span className="sd-score-sep">|</span>
+          <span className="sd-score-item" style={{color: '#58a6ff'}}>60{sd.ma60 ?? 0}</span>
+          <span className="sd-score-sep">|</span>
+          <span className="sd-score-item" style={{color: '#3fb950'}}>量{sd.vr ?? 0}</span>
+          <span className="sd-score-sep">|</span>
+          <span className="sd-score-item" style={{color: '#d29922'}}>位{sd.pos ?? 0}</span>
+          <span className="sd-score-sep">|</span>
+          <span className="sd-score-item" style={{color: '#ff6b6b'}}>跌{sd.dd ?? 0}</span>
+          <span className="sd-score-sep">|</span>
+          <span className="sd-score-item" style={{color: '#f0883e'}}>实{sd.real ?? 0}</span>
+          <span className="sd-score-sep">|</span>
+          <span className="sd-score-item" style={{color: '#bc8cff'}}>盘{sd.market ?? 0}</span>
+        </div>
       </div>
-      <div className="stock-row">
-        <span>成交量</span>
-        <span>{(price.volume || 0) > 10000 ? Math.round(price.volume / 10000) + '万' : price.volume || '--'}</span>
-      </div>
-      <div className="stock-row">
-        <span>振幅</span>
-        <span>{price.amplitude?.toFixed(1) || '--'}%</span>
-      </div>
+
+      {/* ===== 星球双圈评价 ===== */}
+      {xies && (
+        <div className="sd-section sd-xies-section">
+          <div className="sd-section-title">📖 谢SS评价（股道价值投资）</div>
+          <div className="sd-comment-body">
+            {xies.split('|').map((line, j) => (
+              <div key={j} className="sd-comment-line">{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
+      {macro && (
+        <div className="sd-section sd-macro-section">
+          <div className="sd-section-title">📖 Macro评价（Labubu产业链）</div>
+          <div className="sd-comment-body">
+            {macro.split('|').map((line, j) => (
+              <div key={j} className="sd-comment-line">{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -80,7 +199,7 @@ function LinkDetail({ node, section, stockPrices }) {
             <div className="link-title">{link.name}</div>
             {link.stocks.map((stock, j) => {
               const code = typeof stock === 'string' ? stock : stock.code;
-              const stockName = typeof stock === 'string' ? (stockNames[code] || code) : stock.name;
+              const stockName = typeof stock === 'string' ? (stockPrices[code]?.name || code) : stock.name;
               const price = stockPrices[code] || {};
               return (
                 <div key={code || j} className="stock-item">
@@ -104,11 +223,8 @@ export default function DetailPanel({
   stockPrices,
   industryName,
   industryData,
-  onSelectStock,
-  onBack,
-  history,
 }) {
-  // 概览
+  // 概览模式
   if (!selectedNode) {
     return (
       <div className="detail-panel">
@@ -133,9 +249,8 @@ export default function DetailPanel({
   const isLink = node.type === 'link';
   const isStock = node.type === 'stock';
   const code = node.code;
-  const displayCode = history?.length > 0 ? history[history.length - 1].code : code;
 
-  // 查找该节点所属的section
+  // 查找该公司所属的产业链环节
   let currentSection = null;
   const currentIndData = industryData[industryName];
   if (currentIndData && currentIndData.sections) {
@@ -153,7 +268,6 @@ export default function DetailPanel({
       if (currentSection) break;
     }
     if (!currentSection && isStock) {
-      // 找不到所属section，用默认的第一个
       currentSection = currentIndData.sections[0];
     }
   }
@@ -165,7 +279,7 @@ export default function DetailPanel({
       </div>
       <div className="detail-body">
         {isStock && code && (
-          <StockDetail code={code} stockPrices={stockPrices} onSelectStock={onSelectStock} />
+          <StockDetail node={node} stockPrices={stockPrices} />
         )}
         {isLink && currentSection && (
           <LinkDetail node={node} section={currentSection} stockPrices={stockPrices} />
