@@ -1,7 +1,7 @@
 .kline-panel {
   position: absolute;
-  left: 35%;
-  right: 35%;
+  left: 20%;
+  right: 20%;
   bottom: 0;
   z-index: 100;
   background: #0d1117;

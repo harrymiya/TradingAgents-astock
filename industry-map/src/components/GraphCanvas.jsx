@@ -206,15 +206,40 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
           const stockName = typeof raw === 'object' ? raw.name : (stockPrices[code]?.name || code);
           const { fillColor } = getStockColorAndRadius(stockPrices[code] || {}, colorMetric);
           const nameLabel = stockName.length > 10 ? stockName.slice(0, 10) + '..' : stockName;
-          const cg = (stockPrices[code]?.chg || 0);
-          const cgStr = (cg >= 0 ? '+' : '') + cg.toFixed(1) + '%';
-          const cgColor = cg >= 0 ? '#ff6b6b' : '#51cf66';
+          // 根据当前着色指标显示对应的数值
+          let metricVal, metricStr, metricColor;
+          const p = stockPrices[code] || {};
+          switch (colorMetric) {
+            case 'chg':
+              metricVal = p.chg || 0;
+              metricStr = (metricVal >= 0 ? '+' : '') + metricVal.toFixed(1) + '%';
+              metricColor = metricVal >= 0 ? '#ff6b6b' : '#51cf66';
+              break;
+            case 'yearChg':
+              metricVal = p.yearChg || 0;
+              metricStr = (metricVal >= 0 ? '+' : '') + metricVal.toFixed(1) + '%';
+              metricColor = metricVal >= 0 ? '#ff6b6b' : '#51cf66';
+              break;
+            case 'volume':
+              metricVal = p.volume || 0;
+              metricStr = metricVal > 10000 ? (metricVal / 10000).toFixed(0) + '万' : metricVal.toFixed(0);
+              metricColor = '#8b949e';
+              break;
+            case 'amplitude':
+              metricVal = p.amplitude || 0;
+              metricStr = metricVal.toFixed(1) + '%';
+              metricColor = '#d29922';
+              break;
+            default:
+              metricStr = (p.chg >= 0 ? '+' : '') + (p.chg || 0).toFixed(1) + '%';
+              metricColor = (p.chg || 0) >= 0 ? '#ff6b6b' : '#51cf66';
+          }
 
           // 每行公司整组：圆点+名称+涨跌幅，整行可点击
           const row = g.append('g').attr('class', 'stock-row').style('cursor', 'pointer');
           row.append('circle').attr('cx', cx - COL_W / 2 + 14).attr('cy', sy + 7).attr('r', 4).attr('fill', fillColor).attr('fill-opacity', 1.0).attr('stroke', fillColor).attr('stroke-width', 2.5);
           row.append('text').attr('x', cx - COL_W / 2 + 24).attr('y', sy + 10).attr('fill', '#c9d1d9').attr('font-size', 9).text(nameLabel);
-          row.append('text').attr('x', cx + COL_W / 2 - 55).attr('y', sy + 10).attr('fill', cgColor).attr('font-size', 8).text(cgStr);
+          row.append('text').attr('x', cx + COL_W / 2 - 55).attr('y', sy + 10).attr('fill', metricColor).attr('font-size', 8).text(metricStr);
 
           // 点击整行
           row.on('click', function(event) { event.stopPropagation(); if (onNodeClick) onNodeClick({ id: code, code, name: stockName, type: 'stock', chg: stockPrices[code]?.chg || 0, price: stockPrices[code]?.price || 0 }); });

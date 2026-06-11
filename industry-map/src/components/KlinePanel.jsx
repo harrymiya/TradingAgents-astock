@@ -114,12 +114,12 @@ export default function KlinePanel({ code, name, onClose }) {
     if (klines.length === 0) return null;
 
     const W = 800;
-    const H = 220;
+    const H = 115;
     const padL = 50, padR = 20;
     const kTop = 5;
-    const kBot = 70;
-    const vTop = 75;
-    const vBot = 100;
+    const kBot = 75;
+    const vTop = 78;
+    const vBot = 105;
     const chartW = W - padL - padR;
     const kH = kBot - kTop;
     const vH = vBot - vTop;
