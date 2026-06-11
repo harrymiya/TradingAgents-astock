@@ -170,8 +170,14 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
     for (let i = 0; i < sections.length; i++) colX[i] = offsetX + i * (COL_W + COL_GAP) + COL_W / 2;
 
     const g = svg.append('g');
-    // 横向表格支持鼠标滚轮缩放（点击空白区域触发，点击行/按钮时不触发）
-    const zoom = d3.zoom().scaleExtent([0.3, 5]).on('zoom', (event) => g.attr('transform', event.transform));
+    // 横向表格支持鼠标滚轮缩放（过滤掉stock-row点击事件避免误触发缩放）
+    const zoom = d3.zoom().scaleExtent([0.3, 5])
+      .filter(event => {
+        // 只允许滚轮缩放，禁用双击和拖拽缩放
+        if (event.type === 'wheel') return true;
+        return false;
+      })
+      .on('zoom', (event) => g.attr('transform', event.transform));
     svg.call(zoom);
 
     for (let i = 0; i < sections.length; i++) {
