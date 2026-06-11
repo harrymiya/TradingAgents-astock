@@ -150,14 +150,28 @@
   font-family: monospace;
   font-size: 10px;
   flex-shrink: 0;
+  min-width: 48px;
 }
 
 .screening-name {
   color: #c9d1d9;
-  flex: 1;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.screening-chain-tag {
+  font-size: 9px;
+  color: #d29922;
+  background: #2d2a12;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-right: 2px;
 }
 
 .screening-chg {

@@ -169,7 +169,7 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
     for (let i = 0; i < sections.length; i++) colX[i] = offsetX + i * (COL_W + COL_GAP) + COL_W / 2;
 
     const g = svg.append('g');
-    svg.call(d3.zoom().scaleExtent([0.3, 5]).filter(event => !event.target.closest('.h-node')).on('zoom', (event) => g.attr('transform', event.transform)));
+    // 横向表格模式不启用zoom，防止鼠标滚动导致空白
 
     for (let i = 0; i < sections.length; i++) {
       const cx = colX[i];

@@ -10,7 +10,7 @@
   display: block;
 }
 
-/* 横向模式容器：允许画布内缩放与平移 */
+/* 横向模式容器 */
 .graph-wrapper[data-mode="horizontal"] {
   overflow: hidden;
 }
