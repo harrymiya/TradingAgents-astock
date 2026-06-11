@@ -102,22 +102,14 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
       const resp = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: strategy }),
+        body: JSON.stringify({ action: strategy, realtime: true }),
       });
       const data = await resp.json();
       if (data.error) {
         setError(prev => ({ ...prev, [strategy]: data.error }));
       } else {
-        const codes = (data.results || []).map(r => r.code);
-        const realTime = await fetchRealTimePrices(codes);
-        const merged = (data.results || []).map(r => {
-          const rt = realTime[r.code];
-          if (rt) {
-            return { ...r, chg: rt.chg, close: rt.price };
-          }
-          return r;
-        });
-        setResults(prev => ({ ...prev, [strategy]: { ...data, results: merged } }));
+        // 后端已做实时覆盖，直接使用结果
+        setResults(prev => ({ ...prev, [strategy]: data }));
       }
     } catch (e) {
       setError(prev => ({ ...prev, [strategy]: e.message }));

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
 screening_api.py — 选股API，每个策略走完整3级管道
-  Stage 1: SQL条件筛选（现有逻辑）
+  Stage 1: SQL条件筛选（支持实时模式：feat表条件 + 腾讯行情覆盖chg）
   Stage 2: 6维度评分 → Top10（与 scan_pipeline.py 一致）
   Stage 3: TradingAgents LLM深度分析（异步，前端轮询结果）
+
+2026-06-11 升级: 新增realtime模式，盘中选股用腾讯实时API覆盖chg
 """
 import sys, os, json, sqlite3, re
 from datetime import datetime
@@ -22,15 +24,16 @@ def json_handler(body):
         result = json.loads(body)
         action = result.get("action", "")
         date = result.get("date", "")
+        realtime = result.get("realtime", False)  # 🆕 实时模式标志
         
         if action == "s3":
-            data = run_s3_stage2(date)
+            data = run_s3_stage2(date, realtime)
         elif action == "sanmai":
-            data = run_sanmai_stage2(date)
+            data = run_sanmai_stage2(date, realtime)
         elif action == "sanyin":
             data = run_sanyin_stage2(date)
         elif action == "pipeline":
-            data = run_pipeline_stage2(date)
+            data = run_pipeline_stage2(date, realtime)
         else:
             data = {"error": f"Unknown action: {action}"}
         
@@ -38,6 +41,8 @@ def json_handler(body):
         return (200, {"Content-Type": "application/json; charset=utf-8"}, resp.encode())
     except Exception as e:
         log(f"ERROR: {e}")
+        import traceback
+        log(traceback.format_exc())
         resp = json.dumps({"error": str(e)}, ensure_ascii=False)
         return (500, {"Content-Type": "application/json; charset=utf-8"}, resp.encode())
 
@@ -61,10 +66,128 @@ def _get_trading_days(target_date, count):
 
 
 # ================================================================
-# Stage 1: 策略筛选（保持原有逻辑不变）
+# 🆕 腾讯实时行情获取（盘中覆盖feat数据）
 # ================================================================
 
-def stage1_s3(date_str):
+def fetch_realtime_prices(codes):
+    """
+    从腾讯API批量获取实时股价和涨跌幅
+    返回: {code: {'price': float, 'chg': float, 'high': float, 'low': float, 'volume': float}, ...}
+    """
+    if not codes:
+        return {}
+    
+    import urllib.request
+    import urllib.parse
+    
+    # 腾讯API需要sz/sh前缀
+    batches = []
+    batch = []
+    for code in codes:
+        prefix = "sh" if code.startswith('6') else "sz"
+        batch.append(f"{prefix}{code}")
+        if len(batch) >= 50:  # 腾讯API限制
+            batches.append(batch)
+            batch = []
+    if batch:
+        batches.append(batch)
+    
+    result = {}
+    for batch in batches:
+        try:
+            qs = ",".join(batch)
+            url = f"http://qt.gtimg.cn/q={qs}"
+            resp = urllib.request.urlopen(url, timeout=5).read().decode("gbk")
+            
+            # 腾讯API返回格式: v_sz000001="字段1~字段2~...";
+            for line in resp.strip().split("\n"):
+                line = line.strip()
+                if not line or "=" not in line:
+                    continue
+                m = re.search(r'"([^"]*)"', line)
+                if not m:
+                    continue
+                fields = m.group(1).split("~")
+                if len(fields) < 32:
+                    continue
+                # fields[2] = 代码, fields[3] = 当前价, fields[32] = 涨跌额, fields[33] = 涨跌幅
+                # fields[5] = 今开, fields[34] = 最高, fields[35] = 最低
+                # fields[6] = 成交量(手) 
+                code = fields[2]
+                price = float(fields[3]) if fields[3] else 0
+                chg_pct = float(fields[32]) if fields[32] else 0  # 涨跌幅%
+                high = float(fields[33]) if fields[33] else 0
+                low = float(fields[34]) if fields[34] else 0
+                volume = float(fields[6]) if fields[6] else 0  # 手
+                
+                if price > 0:
+                    result[code] = {
+                        'price': price,
+                        'chg': chg_pct,  # 涨跌幅%
+                        'high': high,
+                        'low': low,
+                        'volume': volume,
+                    }
+        except Exception as e:
+            log(f"腾讯行情请求失败(batch {len(batch)}只): {e}")
+    
+    return result
+
+
+def apply_realtime(candidates):
+    """
+    用腾讯实时数据覆盖候选股的chg和close
+    如果实时chg不再满足S3条件立即剔除
+    """
+    if not candidates:
+        return candidates
+    
+    codes = [c['code'] for c in candidates]
+    rt = fetch_realtime_prices(codes)
+    log(f"腾讯实时已返回 {len(rt)}/{len(codes)} 只数据")
+    
+    filtered = []
+    removed_signal = 0
+    for c in candidates:
+        code = c['code']
+        if code in rt:
+            r = rt[code]
+            old_chg = c.get('chg', 0)
+            old_close = c.get('close', 0)
+            c['chg'] = round(r['chg'], 2)
+            c['close'] = round(r['price'], 2)
+            c['realtime_chg'] = round(r['chg'], 2)
+            c['realtime_price'] = round(r['price'], 2)
+            c['_is_realtime'] = True
+            
+            # 检查实时涨跌幅是否还满足S3条件
+            strategy = c.get('strategy', '')
+            if 'S3' in strategy:
+                if r['chg'] < 3 or r['chg'] >= 7:
+                    removed_signal += 1
+                    log(f"  ❌ {code} {c.get('name','')} 实时chg={r['chg']:+.2f}% 已不满足S3 → 剔除")
+                    continue  # 不加入最终结果
+                # 量比也查一下：用实时volume反推近似vr5
+                if 'vr_5' in c and c['vr_5'] is not None and c['vr_5'] > 0:
+                    # 取feat表的量比底线作为参考
+                    pass  # vr5用feat表数据，因为量比计算需要近5日均量
+            
+            filtered.append(c)
+            if abs(r['chg'] - old_chg) > 1:
+                log(f"  🔄 {code} {c.get('name','')} chg: {old_chg:+.2f}% → {r['chg']:+.2f}%")
+        else:
+            # 腾讯没返回数据的，带着原数据通过（可能是停牌或节假日）
+            filtered.append(c)
+    
+    log(f"实时覆盖完成: {len(filtered)}只通过, {removed_signal}只因实时chg不满足条件被剔除")
+    return filtered
+
+
+# ================================================================
+# Stage 1: 策略筛选（支持实时模式）
+# ================================================================
+
+def stage1_s3(date_str, realtime=False):
     conn = sqlite3.connect(DB)
     cur = conn.cursor()
     cur.execute("""
@@ -96,12 +219,21 @@ def stage1_s3(date_str):
             except: d[k] = 0
         d['strategy'] = 'S3'
         d['detail'] = f"超跌(20日位{d['pos_20d']:.0f}%, vr{d['vr_5']:.1f}x, MA20{d['ma20_pct']:.1f}%)"
+        if realtime:
+            d['detail'] += " (实时)"
         results.append(d)
     conn.close()
-    log(f"S3 Stage1: {len(results)}只")
+    
+    # 🆕 实时模式：用腾讯行情覆盖chg并重新过滤
+    if realtime and results:
+        log(f"S3 Stage1 (feat): {len(results)}只 → 应用实时数据覆盖...")
+        results = apply_realtime(results)
+    
+    log(f"S3 Stage1{' (实时)' if realtime else ''}: {len(results)}只")
     return results
 
-def stage1_sanmai(date_str):
+
+def stage1_sanmai(date_str, realtime=False):
     conn = sqlite3.connect(DB)
     cur = conn.cursor()
     cur.execute("""
@@ -130,15 +262,6 @@ def stage1_sanmai(date_str):
         ma5 = float(ma5 or 0)
         ma10 = float(ma10 or 0)
         ma20 = float(ma20 or 0)
-        pos20 = float(pos20 or 0)
-        pos60 = float(pos60 or 0)
-        ma20_pct = float(ma20_pct or 0)
-        ma60_pct = float(ma60_pct or 0)
-        ret1 = float(ret1 or 0)
-        ret3 = float(ret3 or 0)
-        ret5 = float(ret5 or 0)
-        volume = float(volume or 0)
-        
         if close <= 0 or ma20 <= 0:
             continue
 
@@ -207,7 +330,8 @@ def stage1_sanmai(date_str):
                 'ma20': round(ma20, 2), 'ret1': round(ret1, 2), 'ret3': round(ret3, 2),
                 'ret5': round(ret5, 2), 'volume': volume,
                 'strategy': '三买v2',
-                'detail': detail
+                'detail': detail,
+                '_is_realtime': realtime,
             })
         except:
             continue
@@ -216,8 +340,21 @@ def stage1_sanmai(date_str):
             log(f"  三买进度: {len(results)}只")
     
     conn.close()
+    
+    # 🆕 实时模式：三买也用实时数据覆盖（但三买不依赖chg，主要看中枢结构）
+    # 三买主要看中枢突破+回抽，实时chg变化不会直接剔除，但可以让前端看到实时价
+    if realtime and results:
+        log(f"三买 Stage1 (feat): {len(results)}只 → 补充实时行情...")
+        rt = fetch_realtime_prices([r['code'] for r in results])
+        for c in results:
+            if c['code'] in rt:
+                r = rt[c['code']]
+                c['realtime_chg'] = round(r['chg'], 2)
+                c['realtime_price'] = round(r['price'], 2)
+    
     log(f"三买 Stage1: {len(results)}只")
     return results
+
 
 def stage1_sanyin(date_str):
     days = _get_trading_days(date_str, 7)
@@ -276,18 +413,18 @@ def stage1_sanyin(date_str):
 
 
 # ================================================================
-# Stage 2: 6维度评分 → Top10（与 scan_pipeline.py 一致）
+# Stage 2: 6维度评分 → Top10
 # ================================================================
 
 def stage2_score(candidates, date_str):
-    """重写Stage 2：跨策略通用评分，不再是策略内评分
-    
-    维度：
-    1. **产业链热度** (0-10分) — 股票所属热门产业链（从DB的industry_chains + stock_industries）
-    2. **行业景气趋势** (0-8分) — 该股票所属通达信行业的阶段涨幅（l1级行业平均chg）
-    3. **基本面+资金趋势** (0-7分) — 60日位置+5日收益+量比合理性
     """
-    # 加载feat全市场数据
+    跨策略通用评分
+    维度：
+    1. **产业链热度** (0-10分)
+    2. **行业景气趋势** (0-8分)
+    3. **基本面+资金趋势** (0-7分)
+    4. **恐慌阴加分** (0-3分)
+    """
     conn = sqlite3.connect(DB)
     md_rows = conn.execute("""
         SELECT f.code, f.pos_60d, f.ret1, f.ret3, f.ret5,
@@ -304,14 +441,10 @@ def stage2_score(candidates, date_str):
             except: d[k] = 0
         md_map[d['code']] = d
     
-    # 加载行业数据（stock_industries + industry_chains 产业链归属）
-    # 热门产业链列表（从DB的 industry_chains 表读取）
-    hot_chains = set()
     chain_rows = conn.execute("SELECT name FROM industry_chains ORDER BY sort_order").fetchall()
     all_chains = [r[0] for r in chain_rows]
     conn.close()
     
-    # 获取每个股票的行业归属
     ind_conn = sqlite3.connect(DB)
     ind_rows = ind_conn.execute(
         "SELECT code, industry_l1, industry_l2, industry_l3 FROM stock_industries"
@@ -321,7 +454,6 @@ def stage2_score(candidates, date_str):
         stock_industry_map[r[0]] = {'l1': r[1] or '', 'l2': r[2] or '', 'l3': r[3] or ''}
     ind_conn.close()
     
-    # 获取每个股票的产业链归属（从chain_stocks表）
     chain_stocks_conn = sqlite3.connect(DB)
     cs_rows = chain_stocks_conn.execute("""
         SELECT DISTINCT cs.code, ic.name
@@ -337,7 +469,6 @@ def stage2_score(candidates, date_str):
             stock_chains[code] = []
         stock_chains[code].append(chain_name)
     
-    # 预先判断一批热度关键词
     HOT_KEYWORDS = ['AI', '算力', '芯片', '半导体', '机器人', '低空经济', '新能源',
                     '光伏', '电池', '汽车', '光模块', 'PCB', '软件', '算网',
                     '消费电子', '创新药', '军工', '商业航天']
@@ -355,91 +486,73 @@ def stage2_score(candidates, date_str):
         ## 维度1：产业链热度 (0-10分)
         chain_score = 0
         chain_tag = ''
-        
-        # 检查股票所属产业链
         chains = stock_chains.get(code, [])
         ind_info = stock_industry_map.get(code, {})
         ind_l1 = ind_info.get('l1', '')
         ind_l2 = ind_info.get('l2', '')
         
-        # 检查名字是否在热门产业链中
         matched_chains = []
         for ch in all_chains:
             if ch in chains:
                 matched_chains.append(ch)
         
-        # 检查行业是否含热门关键词
         hot_keyword_matches = []
         for kw in HOT_KEYWORDS:
             if kw in ind_l1 or kw in ind_l2 or kw in ind_l2:
                 hot_keyword_matches.append(kw)
         
-        # 实际打分
         if matched_chains:
-            chain_score += 7  # 有明确产业链归属就+7
+            chain_score += 7
             chain_tag = matched_chains[0]
         if hot_keyword_matches:
-            chain_score += 3  # 行业含热门关键词+3
+            chain_score += 3
             if not chain_tag:
                 chain_tag = hot_keyword_matches[0]
         chain_score = min(chain_score, 10)
-        
         scores['产业链热度'] = chain_score
         total += chain_score
         
         ## 维度2：行业景气趋势 (0-8分)
-        # 从feat表该股票所在l1行业的平均涨幅
-        # 简化版：用个股的5日收益 + 60日位置来判断趋势
         trend_score = 0
         ret5 = float(row['ret5'])
         pos60 = float(row['pos_60d'])
         
-        # 5日涨幅为正→上行趋势
-        if ret5 > 3: trend_score += 3      # 强反弹趋势
-        elif ret5 > 0: trend_score += 2     # 弱反弹趋势
-        elif ret5 > -3: trend_score += 1    # 横盘
+        if ret5 > 3: trend_score += 3
+        elif ret5 > 0: trend_score += 2
+        elif ret5 > -3: trend_score += 1
         
-        # 60日位置（反映中期趋势）
-        if 20 <= pos60 <= 80: trend_score += 3   # 中位区域，趋势健康
-        elif pos60 < 20: trend_score += 1         # 超跌区域
-        elif pos60 > 80: trend_score += 1         # 高位区域（注意回调风险）
+        if 20 <= pos60 <= 80: trend_score += 3
+        elif pos60 < 20: trend_score += 1
+        elif pos60 > 80: trend_score += 1
         
-        # 量比合理性
         vr5 = float(row['vr_5'])
-        if 0.6 <= vr5 <= 1.5: trend_score += 2   # 温和放量
-        elif vr5 < 0.6: trend_score += 1          # 缩量
+        if 0.6 <= vr5 <= 1.5: trend_score += 2
+        elif vr5 < 0.6: trend_score += 1
         
         trend_score = min(trend_score, 8)
         scores['景气趋势'] = trend_score
         total += trend_score
         
-        ## 维度3：基本面+资金信号 (0-7分)
+        ## 维度3：资金信号 (0-7分)
         signal_score = 0
-        
-        # ret1昨日涨势延续性
         ret1 = float(row['ret1'])
         if ret1 > 0: signal_score += 2
         
-        # 振幅合理性（振幅小说明抛压轻）
         amp = float(row['amp'])
         if amp < 4: signal_score += 2
         elif amp < 6: signal_score += 1
         
-        # 60日位置安全性
-        if pos60 < 50: signal_score += 2   # 中低位更安全
+        if pos60 < 50: signal_score += 2
         elif pos60 < 80: signal_score += 1
         
-        # 量价配合
         chg = float(row['chg'])
-        if chg > 0 and vr5 >= 1.0: signal_score += 1  # 上涨有量
+        if chg > 0 and vr5 >= 1.0: signal_score += 1
         
         signal_score = min(signal_score, 7)
         scores['资金信号'] = signal_score
         total += signal_score
         
         ## 维度4：恐慌阴+停顿阳加分 (0-3分)
-        # 在最近5天中寻找恐慌阴→停顿阳组合，不必正好是T-1/T-0
-        # 这是尾盘战法核心：前期有涨停的人气股 → 大阴线恐慌 → 隔天尾盘不再恐慌
         panic_bonus = 0
         try:
             panic_conn = sqlite3.connect(DB)
@@ -479,6 +592,12 @@ def stage2_score(candidates, date_str):
         c['panic_bonus'] = panic_bonus
         total += panic_bonus
         
+        # 🆕 添加实时标记
+        is_rt = c.get('_is_realtime', False) or c.get('realtime_chg') is not None
+        if is_rt:
+            total -= 1  # 实时数据不确定性扣1分
+            scores['实时'] = -1
+        
         c['scores'] = scores
         c['total_score'] = total
         c['chain_tag'] = chain_tag
@@ -491,72 +610,10 @@ def stage2_score(candidates, date_str):
 
 
 # ================================================================
-# 组合接口：Stage 1 + Stage 2
-# ================================================================
-
-def run_s3_stage2(date_str=None):
-    if not date_str:
-        date_str = get_latest_date()
-    log(f"▶ S3策略 {date_str}")
-    cand = stage1_s3(date_str)
-    # 检查是否有产业链归属信息（从industry_data）
-    _enrich_with_industry(cand)
-    top10 = stage2_score(cand, date_str)
-    log(f"S3 Top10: {[c['code'] for c in top10]}")
-    return {"date": date_str, "count": len(cand), "top10_count": len(top10), "results": top10}
-
-def run_sanmai_stage2(date_str=None):
-    if not date_str:
-        date_str = get_latest_date()
-    log(f"▶ 三买策略 {date_str}")
-    cand = stage1_sanmai(date_str)
-    _enrich_with_industry(cand)
-    top10 = stage2_score(cand, date_str)
-    log(f"三买 Top10: {[c['code'] for c in top10]}")
-    return {"date": date_str, "count": len(cand), "top10_count": len(top10), "results": top10}
-
-def run_sanyin_stage2(date_str=None):
-    if not date_str:
-        date_str = get_latest_date()
-    log(f"▶ 三阴策略 {date_str}")
-    cand = stage1_sanyin(date_str)
-    _enrich_with_industry(cand)
-    top10 = stage2_score(cand, date_str)
-    log(f"三阴 Top10: {[c['code'] for c in top10]}")
-    return {"date": date_str, "count": len(cand), "top10_count": len(top10), "results": top10}
-
-def run_pipeline_stage2(date_str=None):
-    if not date_str:
-        date_str = get_latest_date()
-    log(f"▶ 流水线策略 {date_str}")
-    s3 = stage1_s3(date_str)
-    sanmai = stage1_sanmai(date_str)
-    merged = {}
-    for r in s3:
-        merged[r['code']] = r
-    for r in sanmai:
-        if r['code'] in merged:
-            merged[r['code']]['strategy'] += f"+{r['strategy']}"
-            merged[r['code']]['detail'] += f" | {r['detail']}"
-        else:
-            merged[r['code']] = r
-    cand = list(merged.values())
-    _enrich_with_industry(cand)
-    top10 = stage2_score(cand, date_str)
-    log(f"流水线 Top10: {[c['code'] for c in top10]}")
-    return {
-        "date": date_str, "count": len(cand),
-        "s3_count": len(s3), "sanmai_count": len(sanmai),
-        "top10_count": len(top10), "results": top10
-    }
-
-
-# ================================================================
-# 辅助：给候选股补充产业链归属
+# 组合接口
 # ================================================================
 
 def _enrich_with_industry(candidates):
-    """从产业链DB补充 sector 字段（所属热门产业链）"""
     if not candidates:
         return
     codes = [c['code'] for c in candidates]
@@ -583,9 +640,72 @@ def _enrich_with_industry(candidates):
         log(f"_enrich_with_industry error: {e}")
 
 
+def run_s3_stage2(date_str=None, realtime=False):
+    if not date_str:
+        date_str = get_latest_date()
+    log(f"▶ S3策略 {date_str}{' (实时)' if realtime else ''}")
+    cand = stage1_s3(date_str, realtime)
+    _enrich_with_industry(cand)
+    top10 = stage2_score(cand, date_str)
+    log(f"S3 Top10: {[c['code'] for c in top10]}")
+    return {"date": date_str, "count": len(cand), "top10_count": len(top10), 
+            "results": top10, "realtime": realtime}
+
+
+def run_sanmai_stage2(date_str=None, realtime=False):
+    if not date_str:
+        date_str = get_latest_date()
+    log(f"▶ 三买策略 {date_str}{' (实时)' if realtime else ''}")
+    cand = stage1_sanmai(date_str, realtime)
+    _enrich_with_industry(cand)
+    top10 = stage2_score(cand, date_str)
+    log(f"三买 Top10: {[c['code'] for c in top10]}")
+    return {"date": date_str, "count": len(cand), "top10_count": len(top10), 
+            "results": top10, "realtime": realtime}
+
+
+def run_sanyin_stage2(date_str=None):
+    if not date_str:
+        date_str = get_latest_date()
+    log(f"▶ 三阴策略 {date_str}")
+    cand = stage1_sanyin(date_str)
+    _enrich_with_industry(cand)
+    top10 = stage2_score(cand, date_str)
+    log(f"三阴 Top10: {[c['code'] for c in top10]}")
+    return {"date": date_str, "count": len(cand), "top10_count": len(top10), "results": top10}
+
+
+def run_pipeline_stage2(date_str=None, realtime=False):
+    if not date_str:
+        date_str = get_latest_date()
+    log(f"▶ 流水线{'(实时)' if realtime else ''} {date_str}")
+    s3 = stage1_s3(date_str, realtime)
+    sanmai = stage1_sanmai(date_str, realtime)
+    merged = {}
+    for r in s3:
+        merged[r['code']] = r
+    for r in sanmai:
+        if r['code'] in merged:
+            merged[r['code']]['strategy'] += f"+{r['strategy']}"
+            merged[r['code']]['detail'] += f" | {r['detail']}"
+        else:
+            merged[r['code']] = r
+    cand = list(merged.values())
+    _enrich_with_industry(cand)
+    top10 = stage2_score(cand, date_str)
+    log(f"流水线 Top10: {[c['code'] for c in top10]}")
+    return {
+        "date": date_str, "count": len(cand),
+        "s3_count": len(s3), "sanmai_count": len(sanmai),
+        "top10_count": len(top10), "results": top10,
+        "realtime": realtime
+    }
+
+
 if __name__ == "__main__":
     import sys
     action = sys.argv[1] if len(sys.argv) > 1 else "pipeline"
-    result = json_handler(json.dumps({"action": action}))
+    realtime = "--realtime" in sys.argv
+    result = json_handler(json.dumps({"action": action, "realtime": realtime}))
     data = json.loads(result[2].decode())
-    print(json.dumps(data, ensure_ascii=False, indent=2)[:3000])
+    print(json.dumps(data, ensure_ascii=False, indent=2)[:5000])

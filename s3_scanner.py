@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 """
-s3_scanner.py — S3超跌反弹每日扫描脚本
+s3_scanner.py — S3超跌反弹每日扫描脚本（支持盘中实时模式）
 
 实战流程:
   每天收盘后(或实时)扫描全市场，找出符合条件的S3信号
   输出: 信号列表 + 核心指标 + 操作建议
   
 用法:
-  python3 s3_scanner.py                 # 扫描最近一个交易日
+  python3 s3_scanner.py                 # 扫描最近一个交易日(用feat表)
+  python3 s3_scanner.py --realtime      # 盘中实时模式(腾讯API覆盖chg)
   python3 s3_scanner.py --date 2026-06-08  # 指定日期
   python3 s3_scanner.py --rank 10       # 只显示TOP N
 """
-
-import sqlite3
-import os
-import sys
+import sqlite3, os, sys, json, re, urllib.request
 
 DB = os.path.expanduser("~/.hermes/astock_data.db")
 
 
-def scan(date_str=None, top_n=20):
+def scan(date_str=None, top_n=20, realtime=False):
     """扫描S3信号"""
     conn = sqlite3.connect(DB)
     cur = conn.cursor()
@@ -67,6 +65,50 @@ def scan(date_str=None, top_n=20):
     """, (date_str,))
     
     signals = cur.fetchall()
+    
+    # 🆕 实时模式：用腾讯行情覆盖chg
+    if realtime and signals:
+        print(f"\n  📡 实时模式：正在查询腾讯行情...", end=" ")
+        sys.stdout.flush()
+        codes = [s[0] for s in signals]
+        # 批量查询
+        rt_map = {}
+        for i in range(0, len(codes), 50):
+            batch = codes[i:i+50]
+            q = ",".join([("sh" if c.startswith('6') else "sz") + c for c in batch])
+            try:
+                resp = urllib.request.urlopen(f"http://qt.gtimg.cn/q={q}", timeout=5)
+                text = resp.read().decode("gbk")
+                for line in text.split("\n"):
+                    m = re.search(r'"([^"]*)"', line)
+                    if not m: continue
+                    f = m.group(1).split("~")
+                    if len(f) < 33: continue
+                    code = f[2]; chg = float(f[32]) if f[32] else 0; price = float(f[3]) if f[3] else 0
+                    rt_map[code] = (chg, price)
+            except:
+                pass
+        
+        removed = 0
+        checked = 0
+        new_signals = []
+        for s in signals:
+            code = s[0]
+            if code in rt_map:
+                rt_chg, rt_price = rt_map[code]
+                checked += 1
+                # 实时chg不满足S3的chg条件 → 剔除
+                if rt_chg < 3 or rt_chg >= 7:
+                    removed += 1
+                    continue
+                # 替换为实时数据
+                s = list(s)
+                s[3] = rt_price  # close
+                s[6] = rt_chg   # chg
+                s = tuple(s)
+            new_signals.append(s)
+        signals = new_signals
+        print(f"检查{checked}只, 剔除{removed}只(实时涨幅不满足)")
     
     if not signals:
         msg = f"❌ 今日无S3信号"
@@ -163,6 +205,7 @@ def scan(date_str=None, top_n=20):
 if __name__ == "__main__":
     date_str = None
     top_n = 20
+    realtime = False
     
     args = sys.argv[1:]
     for i, arg in enumerate(args):
@@ -170,5 +213,7 @@ if __name__ == "__main__":
             date_str = args[i + 1]
         elif arg == "--rank" and i + 1 < len(args):
             top_n = int(args[i + 1])
+        elif arg == "--realtime":
+            realtime = True
     
-    scan(date_str, top_n)
+    scan(date_str, top_n, realtime)
