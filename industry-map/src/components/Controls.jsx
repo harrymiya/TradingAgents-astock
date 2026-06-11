@@ -5,6 +5,7 @@ const METRICS = [
   { key: 'yearChg', label: '年度涨幅' },
   { key: 'chg', label: '今日涨跌' },
   { key: 'volume', label: '成交量' },
+  { key: 'amount', label: '成交额' },
   { key: 'amplitude', label: '振幅' },
 ];
 

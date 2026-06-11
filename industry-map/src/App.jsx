@@ -69,6 +69,7 @@ async function batchFetchQtCodes(codes) {
           chg: parseFloat(parts[32]) || 0,
           yearChg: yearChg,
           volume: parseInt(parts[6]) || 0,
+          amount: parseFloat(parts[37]) || 0,
           amplitude: (parseFloat(parts[33]) && parseFloat(parts[34])) ?
             ((parseFloat(parts[33]) - parseFloat(parts[34])) / parseFloat(parts[34]) * 100) : 0,
           pe: parseFloat(parts[39]) || 0,

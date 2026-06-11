@@ -183,6 +183,10 @@ function StockDetail({ node, stockPrices, analysis, analyzing }) {
             <span className="sd-value">{(price.volume || 0) > 10000 ? Math.round(price.volume / 10000) + '万' : (price.volume || '--')}</span>
           </div>
           <div className="sd-grid-item">
+            <span className="sd-label">成交额</span>
+            <span className="sd-value" style={{color: '#7ee787'}}>{(price.amount || 0) >= 100000000 ? (price.amount / 100000000).toFixed(2) + '亿' : (price.amount || 0) >= 10000 ? Math.round(price.amount / 10000) + '万' : (price.amount || '--')}</span>
+          </div>
+          <div className="sd-grid-item">
             <span className="sd-label">振幅</span>
             <span className="sd-value">{(price.amplitude || 0).toFixed(1)}%</span>
           </div>

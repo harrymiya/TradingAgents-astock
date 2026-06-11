@@ -25,6 +25,7 @@ function getStockColorAndRadius(price, colorMetric) {
     case 'chg': metricVal = price.chg || 0; colorMin = -10; colorMax = 10; break;
     case 'yearChg': metricVal = price.yearChg || 0; colorMin = -30; colorMax = 50; break;
     case 'volume': metricVal = Math.min((price.volume || 0) / 10000, 200); colorMin = 0; colorMax = 100; break;
+    case 'amount': metricVal = price.amount ? Math.min(price.amount / 100000000, 50) : 0; colorMin = 0; colorMax = 25; break;
     case 'amplitude': metricVal = price.amplitude || 0; colorMin = 0; colorMax = 10; break;
     default: metricVal = price.chg || 0; colorMin = -10; colorMax = 10;
   }
@@ -224,6 +225,11 @@ function buildHorizontalTable(svg, industry, stockPrices, colorMetric, onTooltip
               metricVal = p.volume || 0;
               metricStr = metricVal > 10000 ? (metricVal / 10000).toFixed(0) + '万' : metricVal.toFixed(0);
               metricColor = '#8b949e';
+              break;
+            case 'amount':
+              metricVal = p.amount || 0;
+              metricStr = metricVal >= 100000000 ? (metricVal / 100000000).toFixed(2) + '亿' : metricVal >= 10000 ? (metricVal / 10000).toFixed(0) + '万' : metricVal.toFixed(0);
+              metricColor = '#7ee787';
               break;
             case 'amplitude':
               metricVal = p.amplitude || 0;
