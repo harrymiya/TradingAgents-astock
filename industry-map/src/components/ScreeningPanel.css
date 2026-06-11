@@ -449,28 +449,50 @@
   font-size: 9px;
 }
 
-/* 星球双圈评价面板 */
-.zsxq-comment-panel {
+/* 星球双圈评价面板（谢SS蓝 + Macro绿 双列深色） */
+.zsxq-dual-panel {
+  display: flex;
+  gap: 6px;
   margin-top: 6px;
-  padding: 8px 10px;
-  background: #1a253b;
-  border: 1px solid #58a6ff;
-  border-radius: 6px;
+  flex-wrap: wrap;
 }
-.zsxq-comment-title {
+.zsxq-eval-block {
+  flex: 1;
+  min-width: 200px;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.xies-block {
+  background: #0d2137;
+  border: 1px solid #1a6ba0;
+}
+.macro-block {
+  background: #0a2e1a;
+  border: 1px solid #1a8a3a;
+}
+.zsxq-eval-title {
   font-size: 11px;
   font-weight: 600;
-  color: #58a6ff;
   margin-bottom: 4px;
 }
-.zsxq-comment-body {
+.xies-block .zsxq-eval-title { color: #58a6ff; }
+.macro-block .zsxq-eval-title { color: #3fb950; }
+.zsxq-eval-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
-.zsxq-comment-line {
+.zsxq-eval-line {
   font-size: 10px;
   color: #c9d1d9;
   line-height: 1.5;
   padding: 1px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.zsxq-eval-line:last-child {
+  font-weight: 600;
+  border-bottom: none;
+  padding-top: 3px;
+  margin-top: 1px;
+  border-top: 1px solid rgba(255,255,255,0.08);
 }

@@ -284,15 +284,29 @@ export default function ScreeningPanel({ onSelectScreening, selectedCode, refres
                   <span>盘{sd.market ?? 0}</span>
                 </div>
               </div>
-              {/* 选中时展开星球评价 */}
-              {isSelected && item.zsxq_comment && (
-                <div className="zsxq-comment-panel">
-                  <div className="zsxq-comment-title">📖 星球双圈评价</div>
-                  <div className="zsxq-comment-body">
-                    {item.zsxq_comment.split('|').map((line, j) => (
-                      <div key={j} className="zsxq-comment-line">{line}</div>
-                    ))}
-                  </div>
+              {/* 选中时展开星球双圈评价（谢SS + Macro独立） */}
+              {isSelected && (item.xies_comment || item.macro_comment) && (
+                <div className="zsxq-dual-panel">
+                  {item.xies_comment && (
+                    <div className="zsxq-eval-block xies-block">
+                      <div className="zsxq-eval-title">📖 谢SS评价（股道价值投资）</div>
+                      <div className="zsxq-eval-body">
+                        {item.xies_comment.split('|').map((line, j) => (
+                          <div key={j} className="zsxq-eval-line">{line}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {item.macro_comment && (
+                    <div className="zsxq-eval-block macro-block">
+                      <div className="zsxq-eval-title">📖 Macro评价（Labubu产业链）</div>
+                      <div className="zsxq-eval-body">
+                        {item.macro_comment.split('|').map((line, j) => (
+                          <div key={j} className="zsxq-eval-line">{line}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

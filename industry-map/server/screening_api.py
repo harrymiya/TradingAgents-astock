@@ -427,74 +427,124 @@ def run_golden_pit(date_str=None, realtime=False):
             'market': market_score,
         }
 
-    # === 4b. 黄金坑评价引擎（基于星球双圈方法论）===
-    def _zsxq_eval(d, sd, total_score, market_up_ratio, chg_val, mcap_val):
-        # 基于评分维度生成评价
+    # === 4b. 黄金坑评价引擎（星球双圈—谢SS & Macro独立评价）===
+    def _xies_eval(d, sd, total_score, chg_val):
+        """谢SS评价：60日线不破+缩量见底+位置+出清清洗+盘中+操作纪律"""
+        lines = []
+        ma60 = d['ma60']
+        vr5 = d['vr5']
+        pos20 = d['pos20']
+        dd = d['dd']
+        
+        # 60日线 — 谢SS最核心判断
+        if ma60 > -5:
+            lines.append("✅ 60日线不破(ma60=%.1f%%) 谢SS核心买点" % ma60)
+        elif ma60 > -10:
+            lines.append("⚠️ 轻度偏离60日线(ma60=%.1f%%) 观察是否企稳" % ma60)
+        else:
+            lines.append("❗ 弱势放宽入选(ma60=%.1f%%) 注意破位风险" % ma60)
+        
+        # 缩量 — 布林钱袋变盘
+        if vr5 < 0.4:
+            lines.append("✅ 极致缩量(vr5=%.2f) 布林钱袋变盘前兆" % vr5)
+        elif vr5 < 0.55:
+            lines.append("✅ 充分缩量(vr5=%.2f) 缩量见底信号" % vr5)
+        elif vr5 < 0.7:
+            lines.append("⚠️ 轻度缩量(vr5=%.2f) 需配合位置确认" % vr5)
+        
+        # 位置 — K线位置决定性质
+        if pos20 < 3:
+            lines.append("✅ 20日最低(pos20=%.0f%%) 跌透洗干净的黄金坑" % pos20)
+        elif pos20 < 8:
+            lines.append("⚠️ 近低位(pos20=%.0f%%)" % pos20)
+        else:
+            lines.append("❗ 位置偏高(pos20=%.0f%%) 不是黄金坑最佳入口" % pos20)
+        
+        # 出清天数 — 浮筹清洗程度
+        if dd >= 5:
+            lines.append("✅ 充分出清(%d天) 浮筹清洗干净" % dd)
+        elif dd >= 3:
+            lines.append("⚠️ 中度出清(%d天) 洗盘接近尾声" % dd)
+        elif dd >= 2:
+            lines.append("⚠️ 轻度出清(%d天)" % dd)
+        else:
+            lines.append("❗ 仅跌%d天 可能还没跌透" % dd)
+        
+        # 盘中确认
+        if chg_val > 2:
+            lines.append("✅ 盘中+%.2f%% 逆势有资金买入" % chg_val)
+        elif chg_val > 0:
+            lines.append("⚠️ 盘中+%.2f%% 弱市企稳" % chg_val)
+        elif chg_val > -2:
+            lines.append("⚠️ 盘中%.2f%% 方向不明" % chg_val)
+        else:
+            lines.append("❗ 盘中%.2f%% 趋势可能还在下" % chg_val)
+        
+        # 综合操作建议
+        if ma60 > -5 and vr5 < 0.55 and pos20 < 5 and dd >= 3:
+            lines.append("📌 谢SS标准黄金坑模型！预设止损60日线-12%")
+        elif ma60 > -5 and vr5 < 0.7 and pos20 < 8:
+            lines.append("📌 谢SS给出场信号，观察企稳后买入")
+        elif ma60 > -10 and vr5 < 0.55:
+            lines.append("📌 弱市黄金坑缩量版 等待大盘共振")
+        else:
+            lines.append("📌 不符合谢SS标准黄金坑 谨慎")
+        
+        return "|".join(lines)
+    
+    def _macro_eval(d, sd, total_score, chg_val):
+        """Macro评价：产业链景气度+TMT赛道+链内对比+外资逻辑"""
         lines = []
         chain = d['chain']
         quality = d['quality']
         tmt = d['tmt_boost']
         ma60 = d['ma60']
         vr5 = d['vr5']
-        pos20 = d['pos20']
-        dd = d['dd']
         
-        tmt_flag = "(TMT)" if tmt > 1.0 else ""
+        tmt_flag = "TMT" if tmt > 1.0 else ""
+        
+        # 产业链景气度 — macro最核心
         if quality >= 5:
-            lines.append("链 %s *5%s 最高景气赛道，双圈共识" % (chain, tmt_flag))
+            if tmt_flag:
+                lines.append("✅ 产业链 %s ⭐5 TMT最高景气赛道 双圈共识" % chain)
+            else:
+                lines.append("✅ 产业链 %s ⭐5 高景气赛道" % chain)
+        elif quality >= 4:
+            if tmt_flag:
+                lines.append("⚠️ 产业链 %s ⭐4 TMT赛道 观察景气持续性" % chain)
+            else:
+                lines.append("⚠️ 产业链 %s ⭐4 中等赛道 需确认景气度" % chain)
         else:
-            lines.append("链 %s *4%s 优质赛道" % (chain, tmt_flag))
+            lines.append("❗ 产业链 %s *3 一般赛道 macro不优先关注" % chain)
         
-        if ma60 > -5:
-            lines.append("60日线不破(ma60=%.1f%%) 谢SS标准黄金坑" % ma60)
-        elif ma60 > -10:
-            lines.append("轻度偏离60日线(ma60=%.1f%%) 观察是否继续下行" % ma60)
-        else:
-            lines.append("弱势放宽入选(ma60=%.1f%%) 注意破位风险" % ma60)
+        # 链内锚定 — 对标链内核心龙头
+        if quality >= 5:
+            if ma60 > -5:
+                lines.append("✅ 链内共振 优质赛道+60日线不破 产业链逻辑验证中")
+            else:
+                lines.append("⚠️ 链内偏离 赛道对(⭐5)但股价偏离60日线 等企稳")
         
-        if vr5 < 0.4:
-            lines.append("极致缩量(vr5=%.2f) 缩量见底变盘前兆" % vr5)
+        # 缩量+位置 — macro需要链内支撑
+        if vr5 < 0.55 and quality >= 4:
+            lines.append("✅ 量价配合 缩量+优质赛道 产业链筛选通过")
         elif vr5 < 0.55:
-            lines.append("充分缩量(vr5=%.2f) 布林钱袋变盘信号" % vr5)
-        elif vr5 < 0.7:
-            lines.append("轻度缩量(vr5=%.2f) 需结合位置" % vr5)
+            lines.append("⚠️ 缩量但赛道一般 谨慎参与")
         
-        if pos20 < 3:
-            lines.append("20日最低位(pos20=%.0f%%) 跌透了的黄金坑" % pos20)
-        elif pos20 < 6:
-            lines.append("接近低位(pos20=%.0f%%)" % pos20)
+        # 盘中与赛道匹配
+        if quality >= 4 and chg_val > 0:
+            lines.append("✅ 赛道+价格正向 外资研报逻辑方向一致")
+        elif quality >= 4 and chg_val < -2:
+            lines.append("⚠️ 赛道优质但价格下行 观察是否是错杀")
+        elif quality < 4 and chg_val > 2:
+            lines.append("⚠️ 赛道一般但价格拉升 注意是否庄股")
+        
+        # 综合
+        if quality >= 5 and vr5 < 0.55 and ma60 > -5:
+            lines.append("📌 Macro双圈共识 产业链+量价共振 中线配置")
+        elif quality >= 5 and vr5 < 0.7:
+            lines.append("📌 Macro产业链认可 等量价配合 纳入观察")
         else:
-            lines.append("位置偏高(pos20=%.0f%%) 不是最佳入场点" % pos20)
-        
-        if dd >= 5:
-            lines.append("充分出清(dd=%d天) 浮筹清洗干净" % dd)
-        elif dd >= 3:
-            lines.append("中度出清(dd=%d天) 洗盘接近尾声" % dd)
-        elif dd >= 2:
-            lines.append("轻度出清(dd=%d天)" % dd)
-        else:
-            lines.append("仅跌%d天 可能还没跌透" % dd)
-        
-        if chg_val > 2:
-            lines.append("盘中+%.2f%% 逆势拉升有资金买入" % chg_val)
-        elif chg_val > 0:
-            lines.append("盘中+%.2f%% 弱市中企稳" % chg_val)
-        elif chg_val > -2:
-            lines.append("盘中%.2f%% 方向不明" % chg_val)
-        else:
-            lines.append("盘中%.2f%% 可能趋势还在下" % chg_val)
-        
-        if quality >= 5 and ma60 > -5:
-            lines.append("双圈共识票 高质量链+60日线不破")
-        
-        if total_score >= 15 and ma60 > -5:
-            lines.append("利润来自持有 中线策略 止损设60日线-12%%")
-        elif total_score >= 15:
-            lines.append("弱市黄金坑1级 控制仓位")
-        elif total_score >= 10:
-            lines.append("预判中跟随 观察为主")
-        else:
-            lines.append("仅做记录")
+            lines.append("📌 Macro不优先 产业链/量价条件不足")
         
         return "|".join(lines)
 
@@ -525,7 +575,8 @@ def run_golden_pit(date_str=None, realtime=False):
             'ret5': round(d['ret5'], 1), 'ret10': round(d['ret10'], 1),
             'amp': round(d['amp'], 1),
             'score_detail': score_detail,
-            'zsxq_comment': _zsxq_eval(d, score_detail, score_val, market_up_ratio, chg_val, mcap_val),
+            'xies_comment': _xies_eval(d, score_detail, score_val, chg_val),
+            'macro_comment': _macro_eval(d, score_detail, score_val, chg_val),
         }
         all_items.append(item)
     
