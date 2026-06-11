@@ -433,18 +433,23 @@ def stage1_sanyin(date_str):
 # ================================================================
 
 def stage2_score(candidates, date_str):
-    """
-    跨策略通用评分 + 大盘调节因子 (2026-06-11升级)
-    维度：
-    1. **产业链热度** (0-10分)
-    2. **行业景气趋势** (0-8分)
-    3. **基本面+资金趋势** (0-7分)
-    4. **恐慌阴加分** (0-3分)
-    5. **大盘状态调节** — 大盘涨跌比决定分数倍率
+    """跨策略通用评分 + 大盘调节因子 (2026-06-11 V2升级)
+    
+    11个相关性因子组合评分体系：
+    ┌───────┬──────────────────────────────────────┬───────┬──────────────┐
+    │ 权重   │ 因子                                │ 范围  │ 来源(回测)    │
+    ├───────┼──────────────────────────────────────┼───────┼──────────────┤
+    │ A-大盘 │ 大盘涨跌比/涨幅/超跌                │ -3~+8 │ 4445条全量    │
+    │ B-板块 │ 产业链归属/热门关键词               │ 0~10  │ 板块分化      │
+    │ C-趋势 │ 5日收益/60日位置/量比               │ 0~8   │ stage2原版    │
+    │ D-质量 │ 振幅/连跌天数                       │ -3~+6 │ S3自身特征    │
+    │ E-恐慌 │ 恐慌阴+停顿阳                       │ 0~3   │ 尾盘战法      │
+    │ F-实时 │ 实时数据不确定性                    │ -1~0  │ 盘中模式      │
+    └───────┴──────────────────────────────────────┴───────┴──────────────┘
     """
     conn = sqlite3.connect(DB)
     
-    # 🆕 大盘状态数据 — 用于S3胜率调节
+    # === 大盘状态数据 ===
     market_row = conn.execute("""
         SELECT AVG(chg) as avg_chg,
                SUM(CASE WHEN chg > 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) as up_ratio,
@@ -455,39 +460,49 @@ def stage2_score(candidates, date_str):
     market_up_ratio = float(market_row[1] or 0.5)
     market_avg_ma60 = float(market_row[2] or 0)
     
-    # 大盘乘数：影响所有S3信号的最终分数
-    # 回测数据: up_ratio>=70%胜率52%+, up_ratio<55%胜率仅35%
-    if market_up_ratio >= 0.70 or market_avg_chg >= 1.5:
-        market_multiplier = 1.3       # 强势 → 加分
-        market_tag = "强势"
-    elif market_up_ratio >= 0.60 or market_avg_chg >= 0.5:
-        market_multiplier = 1.1       # 偏强
-        market_tag = "偏强"
-    elif market_up_ratio >= 0.55 and market_avg_chg >= -0.3:
-        market_multiplier = 1.0       # 中性
-        market_tag = "中性"
-    else:
-        market_multiplier = 0.6       # 弱势 → 严重扣分
-        market_tag = "弱势"
+    # === A: 大盘因子 (权重-3~+8) ===
+    # A1: 大盘涨跌比 (核心因子)
+    #  <55% → -3, 55-60% → 0, 60-70% → +1, 70-75% → +2, >=75% → +3
+    if market_up_ratio < 0.55: market_score = -3
+    elif market_up_ratio < 0.60: market_score = 0
+    elif market_up_ratio < 0.70: market_score = 1
+    elif market_up_ratio < 0.75: market_score = 2
+    else: market_score = 3
     
-    # 全市场超跌时S3胜率反而高
-    deep_discount_bonus = 0
-    if market_avg_ma60 < -5:
-        deep_discount_bonus = 5  # 全市场超跌，S3反弹概率高
-    elif market_avg_ma60 < -2:
-        deep_discount_bonus = 2
+    # A2: 大盘平均涨幅
+    #  <-1% → -2, -1~0% → -1, 0~0.5% → 0, 0.5~1% → +1, 1~2% → +2, >=2% → +3
+    if market_avg_chg < -1: market_score += -2
+    elif market_avg_chg < 0: market_score += -1
+    elif market_avg_chg < 0.5: market_score += 0
+    elif market_avg_chg < 1: market_score += 1
+    elif market_avg_chg < 2: market_score += 2
+    else: market_score += 3
     
+    # A3: 全市场超跌加分 (S3反弹概率最高66.4%)
+    # 均ma60<-10% → +4, <-5% → +2, <-2% → +1
+    if market_avg_ma60 < -10: market_score += 4
+    elif market_avg_ma60 < -5: market_score += 2
+    elif market_avg_ma60 < -2: market_score += 1
+    
+    market_tag = "弱势"
+    if market_up_ratio >= 0.70: market_tag = "强势"
+    elif market_up_ratio >= 0.60: market_tag = "偏强"
+    elif market_up_ratio >= 0.55: market_tag = "中性"
+    
+    # === 全市场个股数据 ===
     md_rows = conn.execute("""
         SELECT f.code, f.pos_60d, f.ret1, f.ret3, f.ret5,
-               f.volume, f.chg, f.vr_5, f.amp
+               f.volume, f.chg, f.vr_5, f.amp, f.down_days,
+               f.ma20_pct, f.ma60_pct
         FROM feat f
         WHERE f.date = ?
     """, (date_str,)).fetchall()
-    md_cols = ['code','pos_60d','ret1','ret3','ret5','volume','chg','vr_5','amp']
+    md_cols = ['code','pos_60d','ret1','ret3','ret5','volume','chg','vr_5','amp','down_days',
+               'ma20_pct','ma60_pct']
     md_map = {}
     for r in md_rows:
         d = dict(zip(md_cols, r))
-        for k in md_cols[1:]:
+        for k in md_cols[1:]: 
             try: d[k] = float(d[k])
             except: d[k] = 0
         md_map[d['code']] = d
@@ -496,6 +511,7 @@ def stage2_score(candidates, date_str):
     all_chains = [r[0] for r in chain_rows]
     conn.close()
     
+    # 行业归属
     ind_conn = sqlite3.connect(DB)
     ind_rows = ind_conn.execute(
         "SELECT code, industry_l1, industry_l2, industry_l3 FROM stock_industries"
@@ -505,6 +521,7 @@ def stage2_score(candidates, date_str):
         stock_industry_map[r[0]] = {'l1': r[1] or '', 'l2': r[2] or '', 'l3': r[3] or ''}
     ind_conn.close()
     
+    # 产业链归属
     chain_stocks_conn = sqlite3.connect(DB)
     cs_rows = chain_stocks_conn.execute("""
         SELECT DISTINCT cs.code, ic.name
@@ -513,11 +530,9 @@ def stage2_score(candidates, date_str):
         JOIN industry_chains ic ON cl.chain_id = ic.id
     """).fetchall()
     chain_stocks_conn.close()
-    
     stock_chains = {}
     for code, chain_name in cs_rows:
-        if code not in stock_chains:
-            stock_chains[code] = []
+        if code not in stock_chains: stock_chains[code] = []
         stock_chains[code].append(chain_name)
     
     HOT_KEYWORDS = ['AI', '算力', '芯片', '半导体', '机器人', '低空经济', '新能源',
@@ -528,45 +543,31 @@ def stage2_score(candidates, date_str):
     for c in candidates:
         code = c['code']
         row = md_map.get(code)
-        if not row:
-            continue
+        if not row: continue
         
         scores = {}
         total = 0
         
-        ## 维度1：产业链热度 (0-10分)
-        chain_score = 0
-        chain_tag = ''
-        chains = stock_chains.get(code, [])
+        # ============== B: 板块因子 (0~10) ==============
+        chain_score = 0; chain_tag = ''
         ind_info = stock_industry_map.get(code, {})
-        ind_l1 = ind_info.get('l1', '')
-        ind_l2 = ind_info.get('l2', '')
+        ind_l1 = ind_info.get('l1', ''); ind_l2 = ind_info.get('l2', '')
+        chains = stock_chains.get(code, [])
         
-        matched_chains = []
-        for ch in all_chains:
-            if ch in chains:
-                matched_chains.append(ch)
+        matched_chains = [ch for ch in all_chains if ch in chains]
+        hot_keyword_matches = [kw for kw in HOT_KEYWORDS if kw in ind_l1 or kw in ind_l2]
         
-        hot_keyword_matches = []
-        for kw in HOT_KEYWORDS:
-            if kw in ind_l1 or kw in ind_l2 or kw in ind_l2:
-                hot_keyword_matches.append(kw)
-        
-        if matched_chains:
-            chain_score += 7
-            chain_tag = matched_chains[0]
-        if hot_keyword_matches:
+        if matched_chains: chain_score += 7; chain_tag = matched_chains[0]
+        if hot_keyword_matches: 
             chain_score += 3
-            if not chain_tag:
-                chain_tag = hot_keyword_matches[0]
+            if not chain_tag: chain_tag = hot_keyword_matches[0]
         chain_score = min(chain_score, 10)
-        scores['产业链热度'] = chain_score
+        scores['板块热度'] = chain_score
         total += chain_score
         
-        ## 维度2：行业景气趋势 (0-8分)
+        # ============== C: 趋势因子 (0~8) ==============
         trend_score = 0
-        ret5 = float(row['ret5'])
-        pos60 = float(row['pos_60d'])
+        ret5 = float(row['ret5']); pos60 = float(row['pos_60d']); vr5 = float(row['vr_5'])
         
         if ret5 > 3: trend_score += 3
         elif ret5 > 0: trend_score += 2
@@ -576,34 +577,36 @@ def stage2_score(candidates, date_str):
         elif pos60 < 20: trend_score += 1
         elif pos60 > 80: trend_score += 1
         
-        vr5 = float(row['vr_5'])
         if 0.6 <= vr5 <= 1.5: trend_score += 2
         elif vr5 < 0.6: trend_score += 1
         
         trend_score = min(trend_score, 8)
-        scores['景气趋势'] = trend_score
+        scores['趋势强度'] = trend_score
         total += trend_score
         
-        ## 维度3：资金信号 (0-7分)
-        signal_score = 0
-        ret1 = float(row['ret1'])
-        if ret1 > 0: signal_score += 2
+        # ============== D: S3质量因子 (-3~+6) ==============
+        quality_score = 0
+        amp = float(row['amp']); dd = int(row.get('down_days', 0))
+        ma20_pct = float(row.get('ma20_pct', -8))
         
-        amp = float(row['amp'])
-        if amp < 4: signal_score += 2
-        elif amp < 6: signal_score += 1
+        # D1: 振幅 — 5-7%胜率72% > 3-5%胜率65%
+        if 3 <= amp < 5: quality_score += 2
+        elif 5 <= amp < 7: quality_score += 2
+        elif amp >= 7: quality_score += 1
         
-        if pos60 < 50: signal_score += 2
-        elif pos60 < 80: signal_score += 1
+        # D2: 连跌天数 — 0天胜率68% > 1-2天61% > 3-4天65% > >=5天30%
+        if dd == 0: quality_score += 3
+        elif dd >= 5: quality_score -= 2
         
-        chg = float(row['chg'])
-        if chg > 0 and vr5 >= 1.0: signal_score += 1
+        # D3: MA20偏离度 — -10~-8%胜率比更深的好
+        if -12 <= ma20_pct < -8: quality_score += 1
+        elif ma20_pct < -20: quality_score -= 1
         
-        signal_score = min(signal_score, 7)
-        scores['资金信号'] = signal_score
-        total += signal_score
+        quality_score = max(-3, min(6, quality_score))
+        scores['S3质量'] = quality_score
+        total += quality_score
         
-        ## 维度4：恐慌阴+停顿阳加分 (0-3分)
+        # ============== E: 恐慌阴因子 (0~3) ==============
         panic_bonus = 0
         try:
             panic_conn = sqlite3.connect(DB)
@@ -615,12 +618,9 @@ def stage2_score(candidates, date_str):
             klines = list(reversed(klines))
             if len(klines) >= 3:
                 for i in range(1, len(klines)):
-                    if i < 2:
-                        continue
-                    d1 = klines[i-1]
-                    d2 = klines[i]
+                    if i < 2: continue
+                    d1 = klines[i-1]; d2 = klines[i]
                     chg_d1 = (d1[4] / klines[i-2][4] - 1) * 100
-                    
                     if chg_d1 <= -3.5 and d1[4] < d1[1]:
                         chg_d2 = (d2[4] / d1[4] - 1) * 100 if d1[4] > 0 else 0
                         if chg_d2 > -2.5:
@@ -630,41 +630,34 @@ def stage2_score(candidates, date_str):
                                 for j in range(max(0, i-22), i):
                                     if j+1 < len(klines) and klines[j][4] > 0:
                                         if round(klines[j][4] * 1.1, 2) - klines[j+1][4] < 0.01:
-                                            has_zt = True
-                                            break
+                                            has_zt = True; break
                                 panic_bonus = max(panic_bonus, 3 if has_zt else 2)
                     elif chg_d1 <= -2.5 and d1[4] < d1[1]:
                         chg_d2 = (d2[4] / d1[4] - 1) * 100 if d1[4] > 0 else 0
-                        if chg_d2 > -2:
-                            panic_bonus = max(panic_bonus, 1)
-        except:
-            pass
+                        if chg_d2 > -2: panic_bonus = max(panic_bonus, 1)
+        except: pass
         
         c['panic_bonus'] = panic_bonus
         total += panic_bonus
+        if panic_bonus > 0:
+            scores['恐慌阴'] = panic_bonus
         
-        # 🆕 添加实时标记
+        # ============== F: 实时因子 (-1~0) ==============
         is_rt = c.get('_is_realtime', False) or c.get('realtime_chg') is not None
         if is_rt:
-            total -= 1  # 实时数据不确定性扣1分
+            total -= 1
             scores['实时'] = -1
         
-        # 🆕 大盘调节：应用market_multiplier + deep_discount_bonus
-        # 大盘乘数乘在总分数上（但不影响评分明细显示）
-        adjusted_total = round(total * market_multiplier) + deep_discount_bonus
-        
-        # 连跌天数加分/扣分
-        dd = c.get('down_days', 0)
-        if dd == 0:
-            adjusted_total += 2  # 连跌0天胜率68% → 加分
-        elif dd >= 3:
-            adjusted_total -= 2  # 连跌3天+胜率约40%
+        # ============== A: 大盘因子 (累加到总分) ==============
+        total += market_score
+        if market_score != 0:
+            scores['大盘'] = market_score
         
         c['market_tag'] = market_tag
         c['market_up_ratio'] = round(market_up_ratio * 100, 1)
         c['market_avg_chg'] = round(market_avg_chg, 2)
         c['scores'] = scores
-        c['total_score'] = adjusted_total
+        c['total_score'] = total
         c['chain_tag'] = chain_tag
         c['matched_chains'] = matched_chains[:2]
         c['ind_info'] = f"{ind_l1}/{ind_l2}" if ind_l2 else ind_l1
@@ -672,12 +665,6 @@ def stage2_score(candidates, date_str):
     
     scored.sort(key=lambda x: x['total_score'], reverse=True)
     return scored[:10]
-
-
-# ================================================================
-# 组合接口
-# ================================================================
-
 def _enrich_with_industry(candidates):
     if not candidates:
         return
