@@ -7,6 +7,7 @@ import DetailPanel from './components/DetailPanel';
 import KlinePanel from './components/KlinePanel';
 import frameworksData from './data/frameworks_data.json';
 import stockNames from './data/stock_names.json';
+import yearStartPrices from './data/year_start_prices.json';
 import './App.css';
 
 const API_BASE = 'https://qt.gtimg.cn/q=';
@@ -60,10 +61,13 @@ async function batchFetchQtCodes(codes) {
         const code = codeMatch ? codeMatch[1] : rawCode;
         if (!code) continue;
         const name = parts[1] || stockNames[code] || code;
+        const price = parseFloat(parts[3]) || 0;
+        const yearStart = yearStartPrices[code];
+        const yearChg = yearStart ? (price - yearStart) / yearStart * 100 : 0;
         results[code] = {
-          price: parseFloat(parts[3]) || 0,
+          price: price,
           chg: parseFloat(parts[32]) || 0,
-          yearChg: parseFloat(parts[69]) || 0,
+          yearChg: yearChg,
           volume: parseInt(parts[6]) || 0,
           amplitude: (parseFloat(parts[33]) && parseFloat(parts[34])) ?
             ((parseFloat(parts[33]) - parseFloat(parts[34])) / parseFloat(parts[34]) * 100) : 0,
